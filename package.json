@@ -1,0 +1,15 @@
+{
+  "name": "freightflow",
+  "version": "2.0.0",
+  "description": "Enterprise Logistics & Invoice Automation Platform with Nomadia-inspired Features",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "cd backend && node server.js",
+    "dev": "cd backend && npm start",
+    "test": "echo \"No tests currently defined\""
+  },
+  "dependencies": {
+    "json2csv": "^6.0.0-alpha.2",
+    "node-fetch": "^2.7.0"
+  }
+}
