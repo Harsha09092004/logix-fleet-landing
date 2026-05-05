@@ -47,7 +47,7 @@
             </ul>
         </div>
 
-        <form id="signupForm">
+        <form id="signupForm" action="https://forms.gle/QcSStZYjsegXyaZS8" method="GET" target="_blank">
             <div class="form-group">
                 <label>Full Name *</label>
                 <input type="text" name="name" required>
@@ -134,7 +134,12 @@
 
             // Try to send via WhatsApp (Gupshup) and Email
             try {
-                await fetch('/api/beta-signup', {
+                // Form responses go directly to Google Form
+            const formUrl = 'https://docs.google.com/forms/d/e/1FAIpQLScHtMN7J1VzEYhOg7SIF7K8hjUjBjtJVlW3znKjiVXN8LPn1Q/formResponse';
+            const params = new FormData();
+            params.append('entry.123456789', formData.name);  // Replace with actual entry IDs
+            
+            await fetch(formUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData)

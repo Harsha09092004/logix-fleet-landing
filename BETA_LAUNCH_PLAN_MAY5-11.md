@@ -71,7 +71,7 @@
 ---
 
 ## 🔗 SIGNUP LINK
-**Google Form**: [To be created today]
+**Google Form**: https://forms.gle/QcSStZYjsegXyaZS8
 **Direct Link**: https://forms.gle/[ID]
 **Backup**: http://localhost:5000 (demo)
 

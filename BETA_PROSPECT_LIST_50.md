@@ -118,13 +118,13 @@
 1. Copy all emails above
 2. Contacts → Import → Paste
 3. Create label "Beta Signups"
-4. Use Gmail merge mail to send personalized emails
+4. Use Gmail merge mail to send personalized emails with link: https://forms.gle/QcSStZYjsegXyaZS8
 
 ### For WhatsApp:
 1. Save numbers to phone
 2. Use WhatsApp web → Broadcast list
 3. Or send individually (more personal)
-4. Use templates from BETA_EMAIL_TEMPLATES_READY.md
+4. Use templates from BETA_EMAIL_TEMPLATES_READY.md with link: https://forms.gle/QcSStZYjsegXyaZS8
 
 ### For LinkedIn:
 1. Search each person

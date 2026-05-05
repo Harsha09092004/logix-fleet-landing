@@ -25,7 +25,7 @@ I'm Harsha from FreightFlow. We built an invoice OCR that extracts data in 3-5 s
 **The beta is free. Limited to 50 companies.**
 
 **[TRY FOR FREE - 100 uploads/month]**
-👉 https://forms.gle/[YOUR_FORM_ID]
+👉 https://forms.gle/QcSStZYjsegXyaZS8
 
 Takes 2 minutes to sign up. Login credentials in 1 hour.
 
@@ -65,7 +65,7 @@ They're saving 10-15 hours/week. Their team says:
 **We have 30 more beta slots (closing May 11).**
 
 Get early access:
-👉 https://forms.gle/[YOUR_FORM_ID]
+👉 https://forms.gle/QcSStZYjsegXyaZS8
 
 Your company name will be in our beta hall of fame.
 
@@ -98,7 +98,7 @@ After May 11, we're moving to paid-only ($5K/month or $50K/year).
 **After May 11**: Only available as paid feature.
 
 Last chance to lock in free access:
-👉 https://forms.gle/[YOUR_FORM_ID]
+👉 https://forms.gle/QcSStZYjsegXyaZS8
 
 Questions? Reply to this email or WhatsApp +91 63810 17116
 
@@ -131,7 +131,7 @@ For anyone who signed up or is interested:
 After that, standard pricing applies.
 
 **Activate your free trial**:
-👉 https://forms.gle/[YOUR_FORM_ID]
+👉 https://forms.gle/QcSStZYjsegXyaZS8
 
 or WhatsApp: +91 63810 17116
 
@@ -148,7 +148,7 @@ Hi [NAME]! 👋
 Harsha from FreightFlow here. We built an invoice OCR that extracts vendor, amount, vehicle, route in 3-5 seconds.
 
 Processing 50+ invoices/week? Try free beta:
-https://forms.gle/[ID]
+https://forms.gle/QcSStZYjsegXyaZS8
 
 100 uploads/month, free forever during beta.
 
@@ -162,7 +162,7 @@ Hey [NAME]! Just checking in 👀
 20+ companies already using FreightFlow OCR beta. Saving 10-15 hours/week.
 
 Last 30 beta slots:
-https://forms.gle/[ID]
+https://forms.gle/QcSStZYjsegXyaZS8
 
 2-min signup, 1-hour access. No card needed.
 ```
@@ -174,7 +174,7 @@ https://forms.gle/[ID]
 Free beta access ends TODAY 11:59 PM. After that, it's ₹5K/month.
 
 Lock in 3 months FREE:
-https://forms.gle/[ID]
+https://forms.gle/QcSStZYjsegXyaZS8
 
 Reply YES and we'll activate you today 🚀
 ```
