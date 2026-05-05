@@ -2,6 +2,46 @@
 // FreightFlow — Invoice Management (Full API CRUD)
 // ============================================================
 
+// Helper: Convert OCR date formats to YYYY-MM-DD format
+function convertOCRDate(dateStr) {
+  if (!dateStr) return null;
+  
+  // Remove extra spaces
+  dateStr = dateStr.replace(/\s+/g, '').trim();
+  
+  // Try multiple date patterns: DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY, YYYY-MM-DD
+  const patterns = [
+    { regex: /^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/, groups: [1, 2, 3], isDDMMYYYY: true },  // DD/MM/YYYY
+    { regex: /^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/, groups: [1, 2, 3], isDDMMYYYY: false },    // YYYY-MM-DD
+  ];
+  
+  for (let pattern of patterns) {
+    const match = dateStr.match(pattern.regex);
+    if (match) {
+      let day, month, year;
+      
+      if (pattern.isDDMMYYYY) {
+        day = match[1].padStart(2, '0');
+        month = match[2].padStart(2, '0');
+        year = match[3];
+      } else {
+        year = match[1];
+        month = match[2].padStart(2, '0');
+        day = match[3].padStart(2, '0');
+      }
+      
+      // Validate date
+      if (parseInt(day) > 0 && parseInt(day) <= 31 && 
+          parseInt(month) > 0 && parseInt(month) <= 12 &&
+          parseInt(year) >= 2000 && parseInt(year) <= 2099) {
+        return `${year}-${month}-${day}`;
+      }
+    }
+  }
+  
+  return null;
+}
+
 Pages.invoices = async function(container) {
   const user = Session.get();
   if (!user) return Router.navigate('login');
@@ -472,9 +512,11 @@ window.autoFillInvoiceForm = (ocrData, confidence) => {
       if (ocrData?.invoice_date) {
         const dateInput = document.getElementById('newDate');
         if (dateInput) {
-          dateInput.value = ocrData.invoice_date;
+          // Convert OCR date format to YYYY-MM-DD format expected by input[type=date]
+          const convertedDate = convertOCRDate(ocrData.invoice_date);
+          dateInput.value = convertedDate || ocrData.invoice_date;
           dateInput.dispatchEvent(new Event('change', { bubbles: true }));
-          console.log(`📅 Date: ${ocrData.invoice_date}`);
+          console.log(`📅 Date: ${ocrData.invoice_date} → ${convertedDate}`);
         }
       }
       

@@ -1989,6 +1989,96 @@ async function startServer() {
   // ─── OCR INVOICE CAPTURE (100% FREE - Tesseract.js) ─────────────────────
   console.log("✅ OCR Module Initialized (FREE - Tesseract.js, No API costs)");
 
+  // Helper: Parse OCR date to YYYY-MM-DD format
+  function parseOCRDate(dateStr) {
+    if (!dateStr) return null;
+    
+    // Remove extra spaces
+    dateStr = dateStr.replace(/\s+/g, '').trim();
+    
+    // Try multiple date patterns: DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY, YYYY-MM-DD
+    const patterns = [
+      /^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/,  // DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY
+      /^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/,      // YYYY-MM-DD or YYYY/MM/DD
+    ];
+    
+    for (let pattern of patterns) {
+      const match = dateStr.match(pattern);
+      if (match) {
+        let day, month, year;
+        
+        if (match[1].length === 4) {
+          // YYYY-MM-DD format
+          year = match[1];
+          month = match[2].padStart(2, '0');
+          day = match[3].padStart(2, '0');
+        } else {
+          // DD/MM/YYYY format
+          day = match[1].padStart(2, '0');
+          month = match[2].padStart(2, '0');
+          year = match[3];
+        }
+        
+        // Validate date
+        if (parseInt(day) > 0 && parseInt(day) <= 31 && 
+            parseInt(month) > 0 && parseInt(month) <= 12 &&
+            parseInt(year) >= 2000 && parseInt(year) <= 2099) {
+          return `${year}-${month}-${day}`;
+        }
+      }
+    }
+    
+    return null;
+  }
+
+  // Helper: Fast fallback invoice extraction (used when OCR times out)
+  function parseFallbackInvoice(fileName) {
+    const result = {
+      vendor_name: 'Manual Entry Required',
+      invoice_number: 'TBD',
+      invoice_date: new Date().toISOString().split('T')[0],
+      amount: 0,
+      currency: 'INR',
+      hsn_code: null,
+      gst_amount: null,
+      vehicle_number: null,
+      route: 'Enter manually',
+      transport_mode: 'FTL',
+      confidence_scores: {}
+    };
+
+    // Try to extract vendor from filename patterns
+    const cleanName = fileName.replace(/\.[^/.]+$/, "").toLowerCase();
+    
+    // Match vendor patterns
+    if (cleanName.includes('tci')) {
+      result.vendor_name = 'TCI EXPRESS LIMITED';
+      result.confidence_scores.vendor_name = 0.7;
+    } else if (cleanName.includes('allcargo')) {
+      result.vendor_name = 'Allcargo Gati';
+      result.confidence_scores.vendor_name = 0.7;
+    } else if (cleanName.includes('delhivery')) {
+      result.vendor_name = 'Delhivery';
+      result.confidence_scores.vendor_name = 0.7;
+    } else if (cleanName.includes('invoice')) {
+      result.vendor_name = 'Invoice';
+      result.confidence_scores.vendor_name = 0.5;
+    } else {
+      result.vendor_name = 'Manual Entry Required';
+      result.confidence_scores.vendor_name = 0.2;
+    }
+
+    // Try to extract invoice number from filename
+    const invMatch = fileName.match(/INV[#\-]?(\d+)|(\d{6,8})/i);
+    if (invMatch) {
+      result.invoice_number = invMatch[1] || invMatch[2];
+      result.confidence_scores.invoice_number = 0.6;
+    }
+
+    console.log(`📝 Fallback extraction: ${result.vendor_name} | Invoice: ${result.invoice_number}`);
+    return result;
+  }
+
   // Helper: Parse invoice text using regex patterns
   function parseInvoiceText(text) {
     const result = {
@@ -2031,22 +2121,23 @@ async function startServer() {
       /(?:Bill[#\s:-]*|BILL[#\s:-]*)([A-Z0-9\-\/\.]{5,20})/i,  // BILL-00125 format
       /([A-Z]{2,4}[-\/]?[0-9]{6,10})/,  // e.g., TCI-123456
       /(?:Invoice|Bill)\s*#?\s*:?\s*([A-Z0-9\-\/\.]{5,25})/i,  // Flexible format: Invoice: XXX-YYYY-ZZZZ
-      /(?:Invoice|Bill)\s*:\s*([^\n]+?)(?:\n|$)/i  // Fallback: anything after Invoice:/Bill:
     ];
     
     for (let pattern of invPatterns) {
       const match = text.match(pattern);
       if (match && match[1]) {
         const inv = match[1].trim();
-        if (inv.length > 2 && inv.length < 25) {
+        // Reject common keywords
+        if (inv.length > 2 && inv.length < 25 && !inv.match(/^(AMOUNT|TOTAL|DATE|VENDOR|ROUTE|VEHICLE|GST|TAX)$/i)) {
           result.invoice_number = inv;
           result.confidence_scores.invoice_number = 0.92;
+          console.log(`📄 Invoice number matched: ${inv}`);
           break;
         }
       }
     }
 
-    // Invoice Date - more flexible patterns
+    // Invoice Date - Parse and convert to YYYY-MM-DD format
     const datePatterns = [
       /(?:Date|Dated?|D\/O|D\.O)[:\s]*([0-3]?[0-9][\s\/-][0-1]?[0-9][\s\/-][12][0-9]{3})/i,
       /([0-3]?[0-9][\s\/\-.][0-1]?[0-9][\s\/\-.][12][0-9]{3})/  // Any date-like pattern
@@ -2055,14 +2146,19 @@ async function startServer() {
     for (let pattern of datePatterns) {
       const match = text.match(pattern);
       if (match && match[1]) {
-        result.invoice_date = match[1].replace(/\s+/g, '/');
-        result.confidence_scores.invoice_date = 0.88;
-        break;
+        const dateStr = match[1].trim();
+        const parsedDate = parseOCRDate(dateStr);
+        if (parsedDate) {
+          result.invoice_date = parsedDate;  // Already in YYYY-MM-DD format
+          result.confidence_scores.invoice_date = 0.88;
+          break;
+        }
       }
     }
 
-    // Amount - Find largest number (usually the total)
-    const numberMatches = text.match(/[₹Rs\.]*\s*(\d{1,3}(?:[,\s]\d{3})*(?:\.\d{2})?)/g);
+    // Amount - Extract all currency amounts and find the highest (typically total)
+    const currencyPattern = /[₹Rs\.]*\s*(\d{1,3}(?:[,]\d{3})*(?:\.\d{2})?)/g;
+    let numberMatches = text.match(currencyPattern);
     if (numberMatches && numberMatches.length > 0) {
       // Extract numeric value from last significant amount (usually highest number)
       const amounts = numberMatches.map(m => {
@@ -2301,22 +2397,39 @@ async function startServer() {
           // Use Tesseract.js (FREE OCR)
           let extracted = { vendor_name: 'Unknown', invoice_number: 'N/A', amount: 0 };
           let confidence = 0.5;
+          let tesseractTimedOut = false;
           
           try {
-            const result = await Tesseract.recognize(req.file.buffer, ['eng', 'hin']);
+            // Add timeout wrapper - Tesseract can hang on certain images
+            const tesseractPromise = Tesseract.recognize(req.file.buffer, ['eng', 'hin']);
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => {
+                tesseractTimedOut = true;
+                reject(new Error('OCR processing timeout - image too large or format unsupported'));
+              }, 15000) // 15 second timeout
+            );
+            
+            const result = await Promise.race([tesseractPromise, timeoutPromise]);
             const { data: { text } } = result;
 
             if (text && text.trim().length > 0) {
               extracted = parseInvoiceText(text);
               confidence = calculateConfidence(extracted);
+              console.log(`✅ Tesseract extracted text (${text.length} chars, ${(confidence*100).toFixed(0)}% confidence)`);
             } else {
-              console.warn(`⚠️  No text detected in image. Using dummy data.`);
+              console.warn(`⚠️  No text detected in image. Using fallback extraction...`);
+              extracted = parseFallbackInvoice(fileName);
+              confidence = 0.4;
             }
           } catch (tesseractError) {
-            console.warn(`⚠️  Tesseract processing failed (${tesseractError.message}). Using fallback extraction...`);
-            // Try basic extraction from filename or fallback
-            extracted.vendor_name = fileName.replace(/\.[^/.]+$/, "").split('_')[0] || 'Extracted';
-            confidence = 0.3;
+            if (tesseractTimedOut) {
+              console.warn(`⏱️  OCR TIMEOUT after 15s - Using fast fallback extraction`);
+            } else {
+              console.warn(`⚠️  Tesseract failed (${tesseractError.message})`);
+            }
+            // Fast fallback: Extract from filename patterns
+            extracted = parseFallbackInvoice(fileName);
+            confidence = 0.35;
           }
 
           const processingTime = Date.now() - startTime;
