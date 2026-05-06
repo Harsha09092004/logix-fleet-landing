@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Fleet Intelligence for Logistics | Logix</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            color: #111;
+            background: #fff;
+            line-height: 1.6;
+        }
+
+        /* Navigation */
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 60px;
+            border-bottom: 1px solid #eee;
+            position: sticky;
+            top: 0;
+            background: #fff;
+            z-index: 100;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            color: #000;
+            letter-spacing: -0.5px;
+        }
+
+        .logo span {
+            color: #ff6b35;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 40px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: #666;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: #000;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .btn-login {
+            padding: 8px 20px;
+            border: 1px solid #ddd;
+            background: #fff;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .btn-login:hover {
+            border-color: #ff6b35;
+            color: #ff6b35;
+        }
+
+        .btn-signup {
+            padding: 10px 24px;
+            background: #ff6b35;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-signup:hover {
+            background: #ff5a1f;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 100px 60px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .hero-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            background: #f0f0f0;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #ff6b35;
+            margin-bottom: 24px;
+        }
+
+        .hero h1 {
+            font-size: 56px;
+            line-height: 1.2;
+            margin-bottom: 24px;
+            color: #000;
+            font-weight: 700;
+        }
+
+        .hero h1 .highlight {
+            color: #ff6b35;
+        }
+
+        .hero p {
+            font-size: 18px;
+            color: #666;
+            margin-bottom: 40px;
+            max-width: 600px;
+            line-height: 1.7;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 60px;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary {
+            padding: 14px 32px;
+            background: #ff6b35;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary:hover {
+            background: #ff5a1f;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(255, 107, 53, 0.3);
+        }
+
+        .btn-secondary {
+            padding: 14px 32px;
+            background: #f5f5f5;
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s;
+        }
+
+        .btn-secondary:hover {
+            background: #eee;
+        }
+
+        .play-icon {
+            width: 20px;
+            height: 20px;
+            background: #ff6b35;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 10px;
+        }
+
+        /* Stats Section */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 40px;
+            margin-top: 60px;
+            padding-top: 60px;
+            border-top: 1px solid #eee;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 28px;
+            font-weight: 700;
+            color: #ff6b35;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: #999;
+            font-weight: 500;
+        }
+
+        /* Features Section */
+        .features {
+            padding: 100px 60px;
+            background: #f9f9f9;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-title {
+            font-size: 40px;
+            font-weight: 700;
+            margin-bottom: 60px;
+            text-align: center;
+            color: #000;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 40px;
+        }
+
+        .feature-card {
+            background: #fff;
+            padding: 40px;
+            border-radius: 12px;
+            border: 1px solid #eee;
+            transition: all 0.3s;
+        }
+
+        .feature-card:hover {
+            border-color: #ff6b35;
+            box-shadow: 0 12px 30px rgba(255, 107, 53, 0.1);
+        }
+
+        .feature-icon {
+            font-size: 40px;
+            margin-bottom: 16px;
+        }
+
+        .feature-card h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #000;
+        }
+
+        .feature-card p {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        /* Live Feed Section */
+        .live-feed {
+            padding: 100px 60px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .live-feed h2 {
+            font-size: 40px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #000;
+        }
+
+        .feed-subtitle {
+            font-size: 16px;
+            color: #999;
+            margin-bottom: 40px;
+        }
+
+        .feed-items {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+        }
+
+        .feed-item {
+            border-left: 4px solid #ff6b35;
+            background: #fafafa;
+            padding: 24px;
+            border-radius: 8px;
+        }
+
+        .feed-item.warning {
+            border-left-color: #ff9500;
+            background: #fff9f5;
+        }
+
+        .feed-item.success {
+            border-left-color: #4caf50;
+            background: #f1f8f4;
+        }
+
+        .feed-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .feed-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #000;
+        }
+
+        .feed-time {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .feed-description {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .feed-action {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255, 107, 53, 0.2);
+            font-size: 13px;
+            color: #ff6b35;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* Integration Section */
+        .integrations {
+            padding: 60px;
+            background: #f9f9f9;
+            text-align: center;
+        }
+
+        .integrations h3 {
+            font-size: 16px;
+            color: #999;
+            margin-bottom: 30px;
+            font-weight: 500;
+        }
+
+        .integration-logos {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            flex-wrap: wrap;
+        }
+
+        .integration-logo {
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+            padding: 10px 20px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+        }
+
+        /* Pricing Section */
+        .pricing {
+            padding: 100px 60px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .pricing h2 {
+            font-size: 40px;
+            font-weight: 700;
+            margin-bottom: 60px;
+            text-align: center;
+            color: #000;
+        }
+
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+        }
+
+        .pricing-card {
+            border: 1px solid #eee;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .pricing-card.featured {
+            border: 2px solid #ff6b35;
+            transform: scale(1.05);
+            box-shadow: 0 20px 40px rgba(255, 107, 53, 0.15);
+        }
+
+        .plan-name {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #000;
+        }
+
+        .plan-price {
+            font-size: 40px;
+            font-weight: 700;
+            color: #ff6b35;
+            margin-bottom: 8px;
+        }
+
+        .plan-period {
+            font-size: 14px;
+            color: #999;
+            margin-bottom: 30px;
+        }
+
+        .plan-features {
+            text-align: left;
+            margin-bottom: 30px;
+        }
+
+        .plan-features li {
+            list-style: none;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .plan-features li:before {
+            content: "✓ ";
+            color: #4caf50;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+
+        .plan-btn {
+            width: 100%;
+            padding: 12px;
+            background: #f5f5f5;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .plan-btn:hover {
+            background: #eee;
+        }
+
+        .pricing-card.featured .plan-btn {
+            background: #ff6b35;
+            color: #fff;
+        }
+
+        .pricing-card.featured .plan-btn:hover {
+            background: #ff5a1f;
+        }
+
+        /* CTA Section */
+        .final-cta {
+            padding: 100px 60px;
+            background: linear-gradient(135deg, #ff6b35 0%, #ff8a55 100%);
+            color: #fff;
+            text-align: center;
+        }
+
+        .final-cta h2 {
+            font-size: 44px;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+
+        .final-cta p {
+            font-size: 18px;
+            margin-bottom: 40px;
+            opacity: 0.95;
+        }
+
+        .btn-white {
+            padding: 14px 40px;
+            background: #fff;
+            color: #ff6b35;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        .btn-white:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Footer */
+        footer {
+            background: #1a1a1a;
+            color: #999;
+            padding: 60px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        footer a {
+            color: #fff;
+            text-decoration: none;
+            margin: 0 20px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            nav {
+                padding: 20px;
+                flex-wrap: wrap;
+            }
+
+            .nav-links {
+                gap: 20px;
+                font-size: 12px;
+            }
+
+            .hero {
+                padding: 60px 20px;
+            }
+
+            .hero h1 {
+                font-size: 36px;
+            }
+
+            .hero p {
+                font-size: 16px;
+            }
+
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .feed-items {
+                grid-template-columns: 1fr;
+            }
+
+            .pricing-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .pricing-card.featured {
+                transform: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav>
+        <div class="logo">Logix <span>Fleet</span></div>
+        <ul class="nav-links">
+            <li><a href="#features">Features</a></li>
+            <li><a href="#how-it-works">How It Works</a></li>
+            <li><a href="#pricing">Pricing</a></li>
+            <li><a href="#docs">Docs</a></li>
+        </ul>
+        <div class="nav-buttons">
+            <button class="btn-login">Login</button>
+            <button class="btn-signup">Start Free</button>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-badge">🚚 Fleet Intelligence Platform</div>
+        <h1>Your <span class="highlight">AI Fleet Manager</span> for smarter logistics decisions.</h1>
+        <p>Know your route efficiency, fuel costs, and delivery risks — before they impact your bottom line. Built for multi-warehouse operations, FTL/LTL shipments, and enterprise logistics.</p>
+        
+        <div class="cta-buttons">
+            <button class="btn-primary">Launch Your Fleet Dashboard</button>
+            <button class="btn-secondary">
+                <span class="play-icon">▶</span>
+                Watch 3-min Demo
+            </button>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-number">156</div>
+                <div class="stat-label">Active Shipments</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">₹2.3Cr</div>
+                <div class="stat-label">Avg Cost Saved</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">34%</div>
+                <div class="stat-label">Faster Routing</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">Free</div>
+                <div class="stat-label">To Start</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <h2 class="section-title">Optimize Every Shipment</h2>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h3>Real-Time Fleet Visibility</h3>
+                <p>Track all trucks, drivers, and shipments across multiple hubs. Get live updates on location, capacity utilization, and delivery status.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🗺️</div>
+                <h3>AI-Powered Route Optimization</h3>
+                <p>Automatic route suggestions based on traffic, fuel costs, delivery windows, and driver availability. Reduce mileage by 25% instantly.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">💰</div>
+                <h3>Cost Analytics & Insights</h3>
+                <p>Per-shipment cost breakdown, fuel efficiency tracking, and profit margin analysis. Identify cost leakage before it impacts revenue.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">⚠️</div>
+                <h3>Risk & Compliance Alerts</h3>
+                <p>Proactive alerts for driver compliance, vehicle maintenance due, regulatory changes, and delivery anomalies.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📱</div>
+                <h3>Mobile Driver App</h3>
+                <p>Real-time navigation, proof-of-delivery capture, customer communication, and performance metrics for drivers.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔗</div>
+                <h3>Enterprise Integrations</h3>
+                <p>Connect with TMS, ERP, accounting software, and existing dispatch systems. API-first architecture for custom workflows.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Live Feed Section -->
+    <section class="live-feed" id="how-it-works">
+        <h2>Fleet Decision Feed — Live</h2>
+        <p class="feed-subtitle">Real-time alerts to optimize your operations</p>
+        
+        <div class="feed-items">
+            <div class="feed-item warning">
+                <div class="feed-header">
+                    <div class="feed-title">Route A will cost 23% more due to fuel surge</div>
+                    <div class="feed-time">2 min ago</div>
+                </div>
+                <div class="feed-description">Current fuel price ₹92/L. Switch to Route B (alternate via Pune) to save ₹8,400.</div>
+                <div class="feed-action">→ View alternate routes</div>
+            </div>
+
+            <div class="feed-item">
+                <div class="feed-header">
+                    <div class="feed-title">3 trucks at 45% capacity</div>
+                    <div class="feed-time">5 min ago</div>
+                </div>
+                <div class="feed-description">Consolidate pending shipments to reduce per-unit cost. 12 available slots across Mumbai routes.</div>
+                <div class="feed-action">→ View consolidation options</div>
+            </div>
+
+            <div class="feed-item success">
+                <div class="feed-header">
+                    <div class="feed-title">Driver compliance due for renewal</div>
+                    <div class="feed-time">1 hour ago</div>
+                </div>
+                <div class="feed-description">Driver Ramesh (DRV-2847) needs license renewal in 7 days. Reassign to backup pool.</div>
+                <div class="feed-action">→ Manage driver assignments</div>
+            </div>
+
+            <div class="feed-item warning">
+                <div class="feed-header">
+                    <div class="feed-title">Warehouse ABC at 92% capacity</div>
+                    <div class="feed-time">20 min ago</div>
+                </div>
+                <div class="feed-description">Incoming 15 pallets in 2 hours. Divert 8 pallets to warehouse XYZ to prevent overflow.</div>
+                <div class="feed-action">→ Review inventory levels</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Integrations -->
+    <section class="integrations">
+        <h3>Integrates with your existing systems</h3>
+        <div class="integration-logos">
+            <div class="integration-logo">SAP</div>
+            <div class="integration-logo">Oracle Netsuite</div>
+            <div class="integration-logo">Zoho One</div>
+            <div class="integration-logo">Microsoft Dynamics</div>
+            <div class="integration-logo">Tally Prime</div>
+            <div class="integration-logo">Custom API</div>
+        </div>
+    </section>
+
+    <!-- Pricing -->
+    <section class="pricing" id="pricing">
+        <h2>Simple, Transparent Pricing</h2>
+        
+        <div class="pricing-grid">
+            <div class="pricing-card">
+                <div class="plan-name">Starter</div>
+                <div class="plan-price">Free</div>
+                <div class="plan-period">First month, unlimited usage</div>
+                <ul class="plan-features">
+                    <li>Up to 5 trucks</li>
+                    <li>Basic route optimization</li>
+                    <li>Real-time tracking</li>
+                    <li>Email support</li>
+                    <li>7-day analytics</li>
+                </ul>
+                <button class="plan-btn">Get Started</button>
+            </div>
+
+            <div class="pricing-card featured">
+                <div class="plan-name">Professional</div>
+                <div class="plan-price">₹12,999</div>
+                <div class="plan-period">Per month • 50+ trucks</div>
+                <ul class="plan-features">
+                    <li>Up to 50 trucks</li>
+                    <li>Advanced AI routing</li>
+                    <li>Real-time tracking</li>
+                    <li>Priority support</li>
+                    <li>90-day analytics</li>
+                    <li>Custom dashboards</li>
+                    <li>API access</li>
+                </ul>
+                <button class="plan-btn">Start Free Trial</button>
+            </div>
+
+            <div class="pricing-card">
+                <div class="plan-name">Enterprise</div>
+                <div class="plan-price">Custom</div>
+                <div class="plan-period">Unlimited trucks • Custom features</div>
+                <ul class="plan-features">
+                    <li>Unlimited trucks</li>
+                    <li>Multi-warehouse operations</li>
+                    <li>Real-time tracking</li>
+                    <li>Dedicated account manager</li>
+                    <li>Unlimited analytics</li>
+                    <li>Custom integrations</li>
+                    <li>On-premise option</li>
+                </ul>
+                <button class="plan-btn">Contact Sales</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section class="final-cta">
+        <h2>Ready to optimize your fleet?</h2>
+        <p>Join 100+ logistics companies saving ₹2Cr+ annually with Logix Fleet Intelligence.</p>
+        <button class="btn-white">Launch Your Dashboard Today</button>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2026 Logix Fleet. All rights reserved.</p>
+        <div>
+            <a href="#privacy">Privacy Policy</a>
+            <a href="#terms">Terms of Service</a>
+            <a href="#contact">Contact Us</a>
+        </div>
+    </footer>
+</body>
+</html>
