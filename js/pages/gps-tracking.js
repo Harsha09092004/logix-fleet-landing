@@ -175,7 +175,7 @@ const GPSTracking = {
 
   loadTrackingData: async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/shipments/tracking', {
+      const response = await fetch('https://freightflow-pkf5.onrender.com/api/shipments/tracking', {
         headers: { 'Authorization': `Bearer ${Session.getToken()}` }
       });
       const data = await response.json();

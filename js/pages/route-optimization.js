@@ -220,7 +220,7 @@ const RouteOptimization = {
     showToast('🔄 Optimizing route... Please wait', 'info');
 
     try {
-      const response = await fetch('http://localhost:5000/api/routes/optimize', {
+      const response = await fetch('https://freightflow-pkf5.onrender.com/api/routes/optimize', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

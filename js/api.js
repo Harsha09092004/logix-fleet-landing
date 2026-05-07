@@ -385,7 +385,7 @@ const API = {
   },
 
   // ─── HTTP HELPERS ─────────────────────────────────────────
-  _baseUrl: 'http://localhost:5000/',
+  _baseUrl: 'https://freightflow-pkf5.onrender.com/',
 
   _authHeaders() {
     const headers = { 'Content-Type': 'application/json' };
@@ -648,7 +648,7 @@ const Session = {
 // --- Sample API call for sending an invite (email or WhatsApp) ---
 // Usage: callInviteUser({ email, name, role, phone, channel: 'whatsapp' })
 async function callInviteUser({ email, name, role, phone, channel = 'email' }) {
-  const res = await fetch("http://localhost:5000/auth/invite", {
+  const res = await fetch("https://freightflow-pkf5.onrender.com/auth/invite", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -706,7 +706,7 @@ async function callInviteUser({ email, name, role, phone, channel = 'email' }) {
 // --- Sample API call for notification history ---
 // Usage: callGetNotifications()
 async function callGetNotifications() {
-  const res = await fetch("http://localhost:5000/api/notifications", {
+  const res = await fetch("https://freightflow-pkf5.onrender.com/api/notifications", {
     headers: {
       Authorization: Session.getToken() ? `Bearer ${Session.getToken()}` : undefined
     }
@@ -719,7 +719,7 @@ async function callGetNotifications() {
 // --- Sample API call for billing plan upgrade ---
 // Usage: callUpgradePlan({ plan: 'growth', duration: 365 })
 async function callUpgradePlan({ plan, duration }) {
-  const res = await fetch("http://localhost:5000/api/billing/upgrade", {
+  const res = await fetch("https://freightflow-pkf5.onrender.com/api/billing/upgrade", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -735,7 +735,7 @@ async function callUpgradePlan({ plan, duration }) {
 // --- Sample API call for integration connect ---
 // Usage: callIntegrationConnect('whatsapp', { apiKey: 'xxx' })
 async function callIntegrationConnect(provider, config) {
-  const res = await fetch(`http://localhost:5000/api/integrations/${provider}/connect`, {
+  const res = await fetch(`https://freightflow-pkf5.onrender.com/api/integrations/${provider}/connect`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

@@ -255,7 +255,7 @@ const ProofOfDelivery = {
 
     try {
       const user = Session.get();
-      const response = await fetch('http://localhost:5000/api/shipments/pod/submit', {
+      const response = await fetch('https://freightflow-pkf5.onrender.com/api/shipments/pod/submit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

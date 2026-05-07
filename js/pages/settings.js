@@ -587,7 +587,7 @@ function showInviteModal() {
         inviteData.phone = phone;
       }
       
-      const res = await fetch('http://localhost:5000/auth/invite', {
+      const res = await fetch('https://freightflow-pkf5.onrender.com/auth/invite', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json', 

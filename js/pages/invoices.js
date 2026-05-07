@@ -376,7 +376,7 @@ window.importFromOCR = async () => {
       
       // Upload to OCR
       // IMPORTANT: Do NOT set Content-Type when using FormData - let browser set it with boundary
-      const uploadRes = await fetch('http://localhost:5000/api/ocr/upload', {
+      const uploadRes = await fetch('https://freightflow-pkf5.onrender.com/api/ocr/upload', {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${token}`
@@ -416,7 +416,7 @@ window.importFromOCR = async () => {
       for (let i = 0; i < 60; i++) {
         console.log(`⏳ Polling status attempt ${i + 1}/60 for job ${jobId}...`);
         
-        const statusRes = await fetch(`http://localhost:5000/api/ocr/status/${jobId}`, {
+        const statusRes = await fetch(`https://freightflow-pkf5.onrender.com/api/ocr/status/${jobId}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
