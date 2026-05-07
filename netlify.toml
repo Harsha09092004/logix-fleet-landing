@@ -4,5 +4,5 @@
 
 [[redirects]]
   from = "/*"
-  to = "/logix-landing-page.html"
+  to = "/index.html"
   status = 200

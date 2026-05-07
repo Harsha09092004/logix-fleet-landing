@@ -13,6 +13,7 @@ const Tesseract = require("tesseract.js");
 
 const whatsappService = require("./whatsappService");
 const emailService = require("./emailService");
+const googleSheetsService = require("./googleSheetsService");
 
 const app = express();
 app.use(cors());
@@ -1067,7 +1068,7 @@ async function seedDemoData() {
       const realUser = new User({
         id: realUserId,
         email: "harsha17116@gmail.com",
-        password_hash: "Logix@123",
+        password_hash: "FreightFlow@123",
         name: "Harshavardhan",
         company: "IMPEX",
         company_id: realUserCompanyId,
@@ -1087,7 +1088,7 @@ async function seedDemoData() {
         onboarded: true
       });
       await realUser.save();
-      console.log('✅ Real user created (harsha17116@gmail.com / Logix@123)');
+      console.log('✅ Real user created (harsha17116@gmail.com / FreightFlow@123)');
       // Seed vendor data
       const vendors = [
         { id: "v1", name: "Express Logistics", email: "contact@expresslogistics.com", phone: "9876543210", on_time_pct: 95, accuracy_pct: 98, dispute_count: 2, score: 96, trend: [92, 94, 96] },
@@ -1264,6 +1265,16 @@ async function startServer() {
       const token = uuid();
       await User.updateOne({ id: user.id }, { token });
       await logAudit(req, "login", { email });
+      
+      // Auto-save user login to Google Sheet
+      googleSheetsService.appendUserLogin({
+        name: user.name,
+        email: user.email,
+        company: user.company,
+        phone: user.phone,
+        plan: user.plan,
+        loginTime: new Date().toISOString()
+      });
       
       // Ensure roles array exists for middleware compatibility
       const userWithRoles = {
@@ -2309,6 +2320,18 @@ async function startServer() {
   console.log(`   ✓ Proof of Delivery - Real POD Records`);
   console.log(`   ✓ Route Optimization - From Actual Shipments`);
   console.log(`   ✓ Driver Delivery App - Real Assignments`);
+  console.log(`\n`);
+
+  // ═══════════════════════════════════════════════════════════
+  // FREIGHTFLOW DECISION INTELLIGENCE ENGINE
+  // ═══════════════════════════════════════════════════════════
+  
+  const decisionsRoutes = require('./api-decisions');
+  app.use('/', decisionsRoutes);
+  
+  console.log(`\n✅ FreightFlow Decision Intelligence Loaded:`);
+  console.log(`   ✓ GET /api/decisions - Real-time logistics decisions`);
+  console.log(`   ✓ GET /api/analytics - YoY performance & savings`);
   console.log(`\n`);
 
   // ═══════════════════════════════════════════════════════════
