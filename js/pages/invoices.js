@@ -469,8 +469,16 @@ window.autoFillInvoiceForm = (ocrData, confidence) => {
   console.log('🔄 Auto-filling form with OCR data:', { ocrData, confidence: conf });
   
   // Safety: Wait for form to be ready after modal renders
+  // Increased timeout to ensure modal is fully rendered
   setTimeout(() => {
     try {
+      // Ensure modal is visible
+      const modal = document.querySelector('.modal');
+      if (!modal) {
+        console.error('❌ Modal not found! Retrying in 500ms...');
+        setTimeout(() => window.autoFillInvoiceForm(ocrData, confidence), 500);
+        return;
+      }
       // Vendor - Try to match if name exists and has reasonable confidence
       if (ocrData?.vendor_name && ocrData.vendor_name.trim().length > 2 && conf >= 30) {
         const vendorSelect = document.getElementById('newVendor');

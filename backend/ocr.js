@@ -95,7 +95,7 @@ class OCRExtractor {
    * Parse invoice text using regex patterns (India-specific)
    */
   static parseInvoiceText(text) {
-    const lines = text.split('\n');
+    const lines = text.split('\n').filter(l => l.trim().length > 0);
     
     const result = {
       vendor_name: null,
@@ -129,16 +129,28 @@ class OCRExtractor {
       result.confidence_scores.invoice_date = 0.92;
     }
 
-    // Amount (₹ 10,000.00 or Rs. 10000 format)
-    const amountPattern = /(?:Amount|Total|Bill|₹|Rs\.?)[:\s]*([0-9]{1,3}(?:[,][0-9]{3})*(?:\.[0-9]{2})?)/i;
-    const amountMatch = text.match(amountPattern);
-    if (amountMatch) {
-      result.amount = parseFloat(amountMatch[1].replace(/,/g, ''));
-      result.confidence_scores.amount = 0.90;
+    // Amount - IMPROVED: More flexible patterns (₹ 10,000 or Rs 10000 or just number with thousands)
+    const amountPatterns = [
+      /(?:Amount|Total|Bill Amount|Invoice Total|Grand Total)[:\s]*(?:₹|Rs\.?\s*)?([0-9]{1,3}(?:[,][0-9]{3})*(?:\.[0-9]{2})?)/i,
+      /(?:₹|Rs\.?\s*)([0-9]{1,3}(?:[,][0-9]{3})*(?:\.[0-9]{2})?)\s*(?:$|(?:$|\n))/gm,
+      /([0-9]{1,3}(?:[,][0-9]{3})+(?:\.[0-9]{2})?)/  // Numbers with thousands separator
+    ];
+    
+    for (let pattern of amountPatterns) {
+      const amountMatch = text.match(pattern);
+      if (amountMatch && amountMatch[1]) {
+        const rawAmount = amountMatch[1].replace(/,/g, '');
+        const parsed = parseFloat(rawAmount);
+        if (!isNaN(parsed) && parsed > 0) {
+          result.amount = parsed;
+          result.confidence_scores.amount = 0.90;
+          break;
+        }
+      }
     }
 
     // GST Amount (GST: ₹ 1000 or SGST/CGST)
-    const gstPattern = /(?:GST|SGST|CGST|Tax)[:\s]*(?:₹|Rs\.?)?([0-9]{1,3}(?:[,][0-9]{3})*(?:\.[0-9]{2})?)/i;
+    const gstPattern = /(?:GST|SGST|CGST|Tax|TAX)[:\s]*(?:₹|Rs\.?)?([0-9]{1,3}(?:[,][0-9]{3})*(?:\.[0-9]{2})?)/i;
     const gstMatch = text.match(gstPattern);
     if (gstMatch) {
       result.gst_amount = parseFloat(gstMatch[1].replace(/,/g, ''));
@@ -177,12 +189,21 @@ class OCRExtractor {
       result.confidence_scores.transport_mode = 0.89;
     }
 
-    // Vendor Name (first few lines often contain vendor name)
-    const vendorLines = lines.slice(0, 5).join(' ');
-    const vendorMatch = vendorLines.match(/^([A-Za-z\s&.,]+)(?:\n|$)/);
-    if (vendorMatch) {
-      result.vendor_name = vendorMatch[1].trim();
-      result.confidence_scores.vendor_name = 0.85;
+    // Vendor Name - IMPROVED: Better heuristics
+    // Try to find company name patterns first
+    const companyPattern = /^([A-Za-z&\s]{5,50}(?:Ltd|Inc|Corp|Limited|Company|Services|Logistics|Transport))/i;
+    const companyMatch = text.match(companyPattern);
+    
+    if (companyMatch) {
+      result.vendor_name = companyMatch[1].trim();
+      result.confidence_scores.vendor_name = 0.90;
+    } else if (lines.length > 0) {
+      // Fallback: First meaningful line (skip short lines)
+      const vendorLine = lines.find(l => l.trim().length > 5 && !l.match(/^\d+$/));
+      if (vendorLine) {
+        result.vendor_name = vendorLine.trim().substring(0, 50);
+        result.confidence_scores.vendor_name = 0.70;
+      }
     }
 
     return result;
