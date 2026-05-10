@@ -95,7 +95,10 @@ class OCRExtractor {
    * Parse invoice text using regex patterns (India-specific)
    */
   static parseInvoiceText(text) {
-    const lines = text.split('\n').filter(l => l.trim().length > 0);
+    // Debug: Log first 500 chars to understand what Tesseract extracted
+    console.log(`🔍 OCR Raw Text (first 500 chars):\n${text.substring(0, 500)}`);
+    
+    const lines = text.split('\n');
     
     const result = {
       vendor_name: null,
@@ -129,28 +132,82 @@ class OCRExtractor {
       result.confidence_scores.invoice_date = 0.92;
     }
 
-    // Amount - IMPROVED: More flexible patterns (₹ 10,000 or Rs 10000 or just number with thousands)
-    const amountPatterns = [
-      /(?:Amount|Total|Bill Amount|Invoice Total|Grand Total)[:\s]*(?:₹|Rs\.?\s*)?([0-9]{1,3}(?:[,][0-9]{3})*(?:\.[0-9]{2})?)/i,
-      /(?:₹|Rs\.?\s*)([0-9]{1,3}(?:[,][0-9]{3})*(?:\.[0-9]{2})?)\s*(?:$|(?:$|\n))/gm,
-      /([0-9]{1,3}(?:[,][0-9]{3})+(?:\.[0-9]{2})?)/  // Numbers with thousands separator
+    // Amount (₹ 10,000.00 or Rs. 10000 format)
+    // Strategy: Look for TOTAL/GRAND TOTAL first, prioritize larger amounts, filter out line items
+    let finalAmount = null;
+    
+    // Strategy 1: Look for explicit TOTAL or GRAND TOTAL with flexible currency recognition
+    // Handles: ₹, Rs, Rs., Rs:, R, $ (OCR errors)
+    // Prioritize amounts > ₹5,000 (typical invoice total threshold)
+    const totalPatterns = [
+      /(?:TOTAL|GRAND\s*TOTAL|Total\s*Amount|Grand\s*Total|Final\s*Amount|Net\s*Total|Sub[T-]?Total)[:\s]*(?:₹|Rs\.?|R\s|[$])\s*([0-9,]+(?:\.[0-9]{2})?)/gi,
+      /([0-9]{2,3}(?:[,][0-9]{3})+)[:\s]*(?=(?:Total|Grand|Amount))/gi  // Amount before Total keyword
     ];
     
-    for (let pattern of amountPatterns) {
-      const amountMatch = text.match(pattern);
-      if (amountMatch && amountMatch[1]) {
-        const rawAmount = amountMatch[1].replace(/,/g, '');
-        const parsed = parseFloat(rawAmount);
-        if (!isNaN(parsed) && parsed > 0) {
-          result.amount = parsed;
-          result.confidence_scores.amount = 0.90;
-          break;
+    for (const pattern of totalPatterns) {
+      let match;
+      const matches = [];
+      while ((match = pattern.exec(text)) !== null) {
+        const amountStr = match[1].replace(/,/g, '');
+        const amount = parseFloat(amountStr);
+        // Filter: Amount should be between ₹1,000 and ₹10,000,000 (typical invoice range)
+        // Exclude line items (< ₹5,000) and unrealistic values
+        if (amount >= 1000 && amount <= 10000000) {
+          matches.push(amount);
         }
       }
+      if (matches.length > 0) {
+        // Prefer larger amounts (likely to be total, not line item)
+        finalAmount = Math.max(...matches);
+        result.confidence_scores.amount = 0.96;
+        break;
+      }
+    }
+    
+    // Strategy 2: If no TOTAL found, look for amounts with currency, prioritize larger ones
+    if (finalAmount === null) {
+      const currencyPattern = /(?:₹|Rs\.?|Rs:|R\s|[$])\s*([0-9]{1,3}(?:[,][0-9]{3})+(?:\.[0-9]{2})?)/g;
+      const allAmounts = [];
+      while ((match = currencyPattern.exec(text)) !== null) {
+        const amount = parseFloat(match[1].replace(/,/g, ''));
+        // Only include realistic invoice amounts, filter out line items and small charges
+        if (amount >= 1000 && amount <= 10000000) {
+          allAmounts.push(amount);
+        }
+      }
+      
+      if (allAmounts.length > 0) {
+        // Take the maximum (highest amount is likely the total, not a line item)
+        finalAmount = Math.max(...allAmounts);
+        result.confidence_scores.amount = 0.88;
+      }
+    }
+    
+    // Strategy 3: Last resort - look for any 5+ digit number (larger than 4-digit line items)
+    if (finalAmount === null) {
+      const anyNumberPattern = /([0-9]{5,6})/g;
+      const allNumbers = [];
+      while ((match = anyNumberPattern.exec(text)) !== null) {
+        const num = parseFloat(match[1]);
+        if (num >= 1000 && num <= 10000000) {
+          allNumbers.push(num);
+        }
+      }
+      if (allNumbers.length > 0) {
+        finalAmount = Math.max(...allNumbers);
+        result.confidence_scores.amount = 0.75; // Lower confidence
+      }
+    }
+    
+    if (finalAmount !== null) {
+      result.amount = finalAmount;
+      console.log(`💰 Amount Extraction: Found ₹${finalAmount} (Confidence: ${result.confidence_scores.amount})`);
+    } else {
+      console.log('⚠️ Amount: Could not extract any valid amount from invoice');
     }
 
     // GST Amount (GST: ₹ 1000 or SGST/CGST)
-    const gstPattern = /(?:GST|SGST|CGST|Tax|TAX)[:\s]*(?:₹|Rs\.?)?([0-9]{1,3}(?:[,][0-9]{3})*(?:\.[0-9]{2})?)/i;
+    const gstPattern = /(?:GST|SGST|CGST|Tax)[:\s]*(?:₹|Rs\.?)?([0-9]{1,3}(?:[,][0-9]{3})*(?:\.[0-9]{2})?)/i;
     const gstMatch = text.match(gstPattern);
     if (gstMatch) {
       result.gst_amount = parseFloat(gstMatch[1].replace(/,/g, ''));
@@ -189,35 +246,60 @@ class OCRExtractor {
       result.confidence_scores.transport_mode = 0.89;
     }
 
-    // Vendor Name - IMPROVED: Better heuristics
-    // Try to find company name patterns first
-    const companyPattern = /^([A-Za-z&\s]{5,50}(?:Ltd|Inc|Corp|Limited|Company|Services|Logistics|Transport))/i;
-    const companyMatch = text.match(companyPattern);
+    // Vendor Name - Extract from known vendors or first meaningful line
+    let vendorName = null;
     
-    if (companyMatch) {
-      result.vendor_name = companyMatch[1].trim();
-      result.confidence_scores.vendor_name = 0.90;
-    } else if (lines.length > 0) {
-      // Fallback: First meaningful line (skip short lines)
-      const vendorLine = lines.find(l => l.trim().length > 5 && !l.match(/^\d+$/));
-      if (vendorLine) {
-        result.vendor_name = vendorLine.trim().substring(0, 50);
-        result.confidence_scores.vendor_name = 0.70;
+    // Strategy 1: Look for known logistics company names (simple pattern matching)
+    const knownVendors = [
+      'TCI Express', 'TCI EXPRESS', 'Allcargo', 'Allcargo Gati', 
+      'Blue Dart', 'Blue Dart Express', 'Blue Dart Logistics',
+      'Delhivery', 'Locus', 'Locus Logistics', 'FedEx',
+      'Bangalore Logistics', 'FreightFlow', 'FreightFlow Analytics',
+      'Express Logistics', 'FastFreight', 'TruckHub'
+    ];
+    
+    for (const vendor of knownVendors) {
+      if (text.toUpperCase().includes(vendor.toUpperCase())) {
+        vendorName = vendor;
+        break;
       }
+    }
+    
+    // Strategy 2: Extract from first lines (skip common headers)
+    if (!vendorName) {
+      const firstLines = lines
+        .filter(l => l.trim().length > 2)
+        .slice(0, 5)
+        .map(l => l.trim());
+      
+      // Look for non-empty line that's not a header keyword
+      for (const line of firstLines) {
+        if (!/^(invoice|bill|receipt|total|amount|date|from|to|route|vehicle|hsn|gst|phone|email)/i.test(line) &&
+            line.length > 3 && 
+            line.length < 60) {
+          vendorName = line;
+          break;
+        }
+      }
+    }
+    
+    if (vendorName) {
+      result.vendor_name = vendorName.trim();
+      result.confidence_scores.vendor_name = vendorName.length > 5 ? 0.90 : 0.70;
     }
 
     return result;
   }
 
-  
   /**
    * Calculate overall confidence score (0-1)
    */
   static calculateConfidence(extracted, fullText) {
-    const scores = Object.values(extracted.confidence_scores || {});
+    const scores = Object.values(extracted.confidence_scores || {}).filter(s => typeof s === 'number' && !isNaN(s));
     if (scores.length === 0) return 0.5;
     
-    return scores.reduce((a, b) => a + b, 0) / scores.length;
+    const average = scores.reduce((a, b) => a + b, 0) / scores.length;
+    return Math.min(1, Math.max(0, average)); // Ensure between 0-1
   }
 }
 
@@ -308,6 +390,15 @@ router.get('/api/ocr/status/:jobId', authenticateToken, async (req, res) => {
 
     if (!job) {
       return res.status(404).json({ error: 'OCR job not found' });
+    }
+
+    if (job.status === 'completed') {
+      console.log(`🔍 Status response for ${jobId}:`, {
+        status: job.status,
+        has_ocr_result: !!job.ocr_result,
+        confidence: job.ocr_result?.confidence,
+        vendor: job.ocr_result?.vendor_name
+      });
     }
 
     res.json({

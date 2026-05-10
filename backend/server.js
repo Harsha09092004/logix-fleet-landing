@@ -297,6 +297,41 @@ app.post("/auth/reset-password", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ─── TOKEN REFRESH ENDPOINT (Auto-refresh on 401) ──────────────
+app.post("/auth/refresh", authenticateToken, async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: "Email required for token refresh" });
+    }
+
+    const user = await User.findOne({ email }).lean();
+    if (!user) {
+      return res.status(401).json({ error: "User not found" });
+    }
+
+    // Generate new token
+    const newToken = `token-${user.id}-${Date.now()}-${Math.random().toString(36).substr(2, 12)}`;
+    
+    // Update token in database
+    await User.findOneAndUpdate(
+      { id: user.id },
+      { token: newToken, token_refreshed_at: new Date() }
+    );
+
+    console.log(`✅ Token refreshed for user: ${user.email}`);
+    res.json({
+      success: true,
+      token: newToken,
+      message: "Token refreshed successfully"
+    });
+  } catch (err) {
+    console.error("❌ Error POST /auth/refresh", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
     let razorpayEnabled = false;
     let Razorpay;
     try {
