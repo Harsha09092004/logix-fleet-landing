@@ -2370,6 +2370,21 @@ async function startServer() {
   console.log(`\n`);
 
   // ═══════════════════════════════════════════════════════════
+  // RATE CARD MANAGEMENT ROUTES
+  // ═══════════════════════════════════════════════════════════
+  
+  const rateCardRoutes = require('./routes/rateCardRoutes');
+  app.use('/api/rate-cards', rateCardRoutes);
+  
+  console.log(`\n✅ Rate Card Management Loaded:`);
+  console.log(`   ✓ GET /api/rate-cards - Fetch all rate cards`);
+  console.log(`   ✓ POST /api/rate-cards - Create rate card`);
+  console.log(`   ✓ PUT /api/rate-cards/:id - Update rate card`);
+  console.log(`   ✓ DELETE /api/rate-cards/:id - Delete rate card`);
+  console.log(`   ✓ POST /api/rate-cards/quotes/generate - Calculate quotes`);
+  console.log(`\n`);
+
+  // ═══════════════════════════════════════════════════════════
   // OCR ROUTES - REGISTERED LAST FOR HIGHEST PRECEDENCE
   // ═══════════════════════════════════════════════════════════
 

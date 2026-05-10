@@ -142,6 +142,11 @@ const Router = {
               <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
               Vendor Scores
             </a>
+            <a class="nav-item" data-page="ratecards" onclick="Router.navigate('ratecards');return false;" href="#">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="7" y1="15" x2="7" y2="15.01"/><line x1="11" y1="15" x2="11" y2="15.01"/></svg>
+              💰 Rate Cards
+              <span style="font-size:9px;background:#10b981;color:#fff;padding:1px 5px;border-radius:4px;font-weight:700;margin-left:4px">NEW</span>
+            </a>
             <a class="nav-item" data-page="reports" onclick="Router.navigate('reports');return false;" href="#">
               <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
               Reports & Analytics
@@ -281,6 +286,7 @@ const Router = {
       gst: Pages.gst,
       payments: Pages.payments,
       vendors: Pages.vendors,
+      ratecards: Pages.ratecards,
       reports: Pages.reports,
       settings: Pages.settings,
       tracking: Pages.tracking,
@@ -345,6 +351,7 @@ const Router = {
       gst: ['GST Compliance', 'GSTR-2B reconciliation & ITC tracking'],
       payments: ['Payments & Aging', 'Payment tracking & outstanding analysis'],
       vendors: ['Vendor Performance', 'Scorecard & performance analytics'],
+      ratecards: ['Rate Card Management', 'Manage vendor pricing and volume slabs'],
       reports: ['Reports & Analytics', 'Business intelligence & AI insights'],
       settings: ['Settings', 'Company profile & system configuration'],
       tracking: ['Shipment Tracking', 'Live shipment status & delivery tracking'],

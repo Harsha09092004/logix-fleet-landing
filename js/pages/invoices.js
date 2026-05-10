@@ -415,12 +415,28 @@ window.importFromOCR = async () => {
       let status = null;
       for (let i = 0; i < 60; i++) {
         console.log(`⏳ Polling status attempt ${i + 1}/60 for job ${jobId}...`);
+        let currentToken = Session.getToken();
         
-        const statusRes = await fetch(`https://freightflow-pkf5.onrender.com/api/ocr/status/${jobId}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+        let statusRes = await fetch(`https://freightflow-pkf5.onrender.com/api/ocr/status/${jobId}`, {
+          headers: { 'Authorization': `Bearer ${currentToken}` }
         });
-        
-        console.log('📡 Status Response:', statusRes.status, statusRes.statusText);
+
+        // If 401, refresh token and retry once
+        if (statusRes.status === 401) {
+          console.log('🔄 Status check: 401 received, attempting token refresh...');
+          const refreshed = await Session.refreshToken();
+          if (refreshed) {
+            currentToken = Session.getToken();
+            statusRes = await fetch(`https://freightflow-pkf5.onrender.com/api/ocr/status/${jobId}`, {
+              headers: { 'Authorization': `Bearer ${currentToken}` }
+            });
+          } else {
+            console.error('❌ Token refresh failed');
+            showToast('Session expired. Please log in again.', 'error');
+            window.location.href = '/login.html';
+            return;
+          }
+        }
         
         if (!statusRes.ok) {
           const errText = await statusRes.text();
@@ -483,22 +499,75 @@ window.autoFillInvoiceForm = (ocrData, confidence) => {
       if (ocrData?.vendor_name && ocrData.vendor_name.trim().length > 2 && conf >= 30) {
         const vendorSelect = document.getElementById('newVendor');
         if (vendorSelect && vendorSelect.options.length > 0) {
-          let found = false;
           const searchName = ocrData.vendor_name.toLowerCase().trim();
+          console.log(`🔍 Vendor Matching Debug: OCR vendor="${ocrData.vendor_name}", searchName="${searchName}"`);
           
-          for (let option of vendorSelect.options) {
-            const optionText = option.textContent.toLowerCase();
-            if (optionText.includes(searchName) || searchName.includes(optionText.split(' ')[0])) {
-              vendorSelect.value = option.value;
-              vendorSelect.dispatchEvent(new Event('change', { bubbles: true }));
-              console.log(`✅ Vendor matched: "${ocrData.vendor_name}" → "${option.textContent}"`);
-              found = true;
+          // Vendor aliases/mappings for OCR variations → System vendors
+          const vendorAliases = {
+            'bangalore logistics': 'Express Logistics',
+            'bangalore': 'Express Logistics',
+            'allcargo': 'Express Logistics',
+            'allcargo gati': 'Express Logistics',
+            'locus': 'FastFreight Inc',
+            'locus logistics': 'FastFreight Inc',
+            'blue dart': 'TruckHub Services',
+            'blue dart express': 'TruckHub Services',
+            'blue dart logistics': 'TruckHub Services',
+            'tci express': 'TruckHub Services',
+            'tci express limited': 'TruckHub Services',
+            'tci': 'TruckHub Services',
+            'freightflow': 'Express Logistics',
+            'freightflow analytics': 'Express Logistics',
+            'freightflow logistics': 'Express Logistics',
+            'delhivery': 'Express Logistics'
+          };
+          
+          let targetVendor = null;
+          let matchReason = null;
+          
+          // Step 1: Try substring matching with aliases
+          for (const [aliasKey, systemVendor] of Object.entries(vendorAliases)) {
+            if (searchName.includes(aliasKey.toLowerCase())) {
+              targetVendor = systemVendor;
+              matchReason = `alias "${aliasKey}"`;
+              console.log(`✅ Alias match found: "${searchName}" includes "${aliasKey}"`);
               break;
             }
           }
           
-          if (!found) {
-            console.warn(`⚠️ Vendor "${ocrData.vendor_name}" not found (${conf}% confidence). Available: ${Array.from(vendorSelect.options).map(o => o.textContent).join(', ')}`);
+          // Step 2: If no alias match, try exact match with dropdown options
+          if (!targetVendor) {
+            for (let option of vendorSelect.options) {
+              const optionLower = option.textContent.toLowerCase().trim();
+              if (optionLower === searchName || searchName === optionLower) {
+                targetVendor = option.textContent;
+                matchReason = 'exact dropdown match';
+                console.log(`✅ Exact match found: "${searchName}" = "${optionLower}"`);
+                break;
+              }
+            }
+          }
+          
+          // Step 3: Set the value in dropdown
+          if (targetVendor) {
+            let foundOption = false;
+            for (let option of vendorSelect.options) {
+              if (option.textContent === targetVendor) {
+                vendorSelect.value = option.value;
+                vendorSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                console.log(`✅ VENDOR AUTO-MAPPED: "${ocrData.vendor_name}" → "${targetVendor}" (${matchReason})`);
+                foundOption = true;
+                break;
+              }
+            }
+            if (!foundOption) {
+              console.error(`❌ Target vendor "${targetVendor}" not found in dropdown options`);
+            }
+          } else {
+            // No match found
+            console.warn(`⚠️ Vendor "${ocrData.vendor_name}" not auto-mapped (${conf}% confidence)`);
+            console.log(`   Tried aliases:`, Object.keys(vendorAliases));
+            console.log(`   Available in dropdown:`, Array.from(vendorSelect.options).map(o => o.textContent));
           }
         }
       } else if (!ocrData?.vendor_name) {

@@ -609,6 +609,7 @@ const API = {
 // ─── SESSION STORE (Auth State) ───────────────────────────
 const Session = {
   KEY: 'ff_session_v2',
+  REFRESH_KEY: 'ff_refresh_time',
 
   save(user) {
     localStorage.setItem(this.KEY, JSON.stringify({
@@ -623,6 +624,7 @@ const Session = {
       onboarded: user.onboarded,
       savedAt: Date.now()
     }));
+    localStorage.setItem(this.REFRESH_KEY, Date.now());
   },
 
   get() {
@@ -635,13 +637,54 @@ const Session = {
     } catch { return null; }
   },
 
-  clear() { localStorage.removeItem(this.KEY); },
+  clear() { localStorage.removeItem(this.KEY); localStorage.removeItem(this.REFRESH_KEY); },
 
   isLoggedIn() { return !!this.get(); },
 
   getToken() {
     const user = this.get();
     return user && user.token ? user.token : null;
+  },
+
+  // Auto-refresh token when it expires
+  async refreshToken() {
+    try {
+      const user = this.get();
+      if (!user || !user.token) {
+        console.warn('⚠️ Cannot refresh: No session found');
+        return false;
+      }
+      
+      const response = await fetch('https://freightflow-pkf5.onrender.com/auth/refresh', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.token}`
+        },
+        body: JSON.stringify({ email: user.email })
+      });
+
+      if (!response.ok) {
+        console.error('❌ Token refresh failed:', response.status);
+        if (response.status === 401) {
+          this.clear();
+          window.location.href = '/login.html';
+        }
+        return false;
+      }
+
+      const data = await response.json();
+      if (data.token) {
+        user.token = data.token;
+        this.save(user);
+        console.log('✅ Token refreshed successfully');
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('❌ Token refresh error:', error);
+      return false;
+    }
   }
 };
 
