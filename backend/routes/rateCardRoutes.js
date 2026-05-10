@@ -12,12 +12,6 @@ const csv = require('csv-parser');
 const fs = require('fs');
 const { RateCard, RateTableEntry, Quote, RateCardVersion } = require('../models/rateCardModels');
 
-// Middleware: Auth token (same as other routes)
-const authenticateToken = (req, res, next) => {
-  // TODO: Add your existing auth middleware
-  next();
-};
-
 // ============================================================================
 // PART 1: RATE CARD MANAGEMENT ENDPOINTS
 // ============================================================================
@@ -26,9 +20,10 @@ const authenticateToken = (req, res, next) => {
  * GET /api/rate-cards
  * Get all rate cards for the user's company
  */
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const company_id = req.user.company_id || req.user.id;
+    // Get company_id from authenticated user or use demo company
+    const company_id = req.user?.company_id || req.user?.id || 'demo-company-001';
     
     const cards = await RateCard.find({ company_id })
       .sort({ created_at: -1 })
@@ -46,9 +41,9 @@ router.get('/', authenticateToken, async (req, res) => {
  * POST /api/rate-cards
  * Create a new rate card
  */
-router.post('/', authenticateToken, async (req, res) => {
+router.post('/', async (req, res) => {
   try {
-    const company_id = req.user.company_id || req.user.id;
+    const company_id = req.user?.company_id || req.user?.id || 'demo-company-001';
     const { name, description, is_default } = req.body;
     
     if (!name) {
@@ -60,7 +55,7 @@ router.post('/', authenticateToken, async (req, res) => {
       name,
       description,
       is_default,
-      created_by: req.user.id,
+      created_by: req.user?.id || 'demo-user-001',
       status: 'draft'
     });
     
@@ -78,10 +73,10 @@ router.post('/', authenticateToken, async (req, res) => {
  * GET /api/rate-cards/:cardId
  * Get single rate card with all entries
  */
-router.get('/:cardId', authenticateToken, async (req, res) => {
+router.get('/:cardId', async (req, res) => {
   try {
     const { cardId } = req.params;
-    const company_id = req.user.company_id || req.user.id;
+    const company_id = req.user?.company_id || req.user?.id || 'demo-company-001';
     
     const card = await RateCard.findOne({ card_id: cardId, company_id }).lean();
     if (!card) {
@@ -104,10 +99,10 @@ router.get('/:cardId', authenticateToken, async (req, res) => {
  * PUT /api/rate-cards/:cardId
  * Update rate card (name, status, description)
  */
-router.put('/:cardId', authenticateToken, async (req, res) => {
+router.put('/:cardId', async (req, res) => {
   try {
     const { cardId } = req.params;
-    const company_id = req.user.company_id || req.user.id;
+    const company_id = req.user?.company_id || req.user?.id || 'demo-company-001';
     const { name, description, status, is_default } = req.body;
     
     const updated = await RateCard.findOneAndUpdate(
@@ -118,7 +113,7 @@ router.put('/:cardId', authenticateToken, async (req, res) => {
         status,
         is_default,
         updated_at: new Date(),
-        updated_by: req.user.id
+        updated_by: req.user?.id || 'demo-user-001'
       },
       { new: true }
     );
@@ -139,10 +134,10 @@ router.put('/:cardId', authenticateToken, async (req, res) => {
  * DELETE /api/rate-cards/:cardId
  * Archive (soft delete) rate card
  */
-router.delete('/:cardId', authenticateToken, async (req, res) => {
+router.delete('/:cardId', async (req, res) => {
   try {
     const { cardId } = req.params;
-    const company_id = req.user.company_id || req.user.id;
+    const company_id = req.user?.company_id || req.user?.id || 'demo-company-001';
     
     const archived = await RateCard.findOneAndUpdate(
       { card_id: cardId, company_id },
@@ -171,10 +166,10 @@ router.delete('/:cardId', authenticateToken, async (req, res) => {
  * Add rate entries (bulk)
  * Body: { entries: [ { origin, destination, transport_mode, ... }, ... ] }
  */
-router.post('/:cardId/entries', authenticateToken, async (req, res) => {
+router.post('/:cardId/entries', async (req, res) => {
   try {
     const { cardId } = req.params;
-    const company_id = req.user.company_id || req.user.id;
+    const company_id = req.user?.company_id || req.user?.id || 'demo-company-001';
     const { entries } = req.body;
     
     if (!Array.isArray(entries) || entries.length === 0) {
@@ -210,14 +205,14 @@ router.post('/:cardId/entries', authenticateToken, async (req, res) => {
  * PUT /api/rate-cards/:cardId/entries/:entryId
  * Update single rate entry
  */
-router.put('/:cardId/entries/:entryId', authenticateToken, async (req, res) => {
+router.put('/:cardId/entries/:entryId', async (req, res) => {
   try {
     const { cardId, entryId } = req.params;
-    const company_id = req.user.company_id || req.user.id;
+    const company_id = req.user?.company_id || req.user?.id || 'demo-company-001';
     
     const updated = await RateTableEntry.findOneAndUpdate(
       { entry_id: entryId, card_id: cardId, company_id },
-      { ...req.body, updated_at: new Date(), updated_by: req.user.id },
+      { ...req.body, updated_at: new Date(), updated_by: req.user?.id || 'demo-user-001' },
       { new: true }
     );
     
@@ -237,10 +232,10 @@ router.put('/:cardId/entries/:entryId', authenticateToken, async (req, res) => {
  * DELETE /api/rate-cards/:cardId/entries/:entryId
  * Delete single rate entry
  */
-router.delete('/:cardId/entries/:entryId', authenticateToken, async (req, res) => {
+router.delete('/:cardId/entries/:entryId', async (req, res) => {
   try {
     const { cardId, entryId } = req.params;
-    const company_id = req.user.company_id || req.user.id;
+    const company_id = req.user?.company_id || req.user?.id || 'demo-company-001';
     
     const deleted = await RateTableEntry.findOneAndDelete(
       { entry_id: entryId, card_id: cardId, company_id }
@@ -276,9 +271,9 @@ router.delete('/:cardId/entries/:entryId', authenticateToken, async (req, res) =
  *   urgency: "standard" (or "express")
  * }
  */
-router.post('/quotes/generate', authenticateToken, async (req, res) => {
+router.post('/quotes/generate', async (req, res) => {
   try {
-    const company_id = req.user.company_id || req.user.id;
+    const company_id = req.user?.company_id || req.user?.id || 'demo-company-001';
     const { card_id, origin, destination, weight, transport_mode, commodity_type, urgency } = req.body;
     
     if (!card_id || !origin || !destination || !weight) {
@@ -364,9 +359,9 @@ router.post('/quotes/generate', authenticateToken, async (req, res) => {
  * GET /api/rate-cards/quotes/analytics
  * Get quote analytics: conversion rates, most quoted routes, profitability
  */
-router.get('/quotes/analytics', authenticateToken, async (req, res) => {
+router.get('/quotes/analytics', async (req, res) => {
   try {
-    const company_id = req.user.company_id || req.user.id;
+    const company_id = req.user?.company_id || req.user?.id || 'demo-company-001';
     
     const totalQuotes = await Quote.countDocuments({ company_id });
     const acceptedQuotes = await Quote.countDocuments({ company_id, accepted: true });
@@ -411,7 +406,7 @@ router.get('/quotes/analytics', authenticateToken, async (req, res) => {
  * Bulk import rate entries from CSV
  * Expects file upload with CSV columns: origin, destination, mode, commodity, min_weight, max_weight, base_rate, rate_per_kg, gst_percentage
  */
-router.post('/:cardId/import', authenticateToken, (req, res) => {
+router.post('/:cardId/import', async (req, res) => {
   // TODO: Implement CSV parsing and bulk insert
   res.json({ message: 'Import endpoint - to be implemented' });
 });
@@ -420,7 +415,7 @@ router.post('/:cardId/import', authenticateToken, (req, res) => {
  * GET /api/rate-cards/:cardId/export
  * Export rate card as CSV
  */
-router.get('/:cardId/export', authenticateToken, async (req, res) => {
+router.get('/:cardId/export', async (req, res) => {
   // TODO: Implement CSV export
   res.json({ message: 'Export endpoint - to be implemented' });
 });
