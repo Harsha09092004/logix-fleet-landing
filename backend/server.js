@@ -45,6 +45,15 @@ app.get('/index.html', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'index.html'));
 });
 
+// ─── Enterprise Dashboard ──────────────────────
+app.get('/dashboard', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'enterprise-dashboard.html'));
+});
+
+app.get('/enterprise-dashboard.html', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'enterprise-dashboard.html'));
+});
+
 // ─── MULTER FILE UPLOAD CONFIG ───────────────────────────
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -823,6 +832,11 @@ let Notification = mongoose.model("ff_notifications", NotificationSchema, "ff_no
 let Shipment = mongoose.model("ff_shipments", ShipmentSchema, "ff_shipments");
 let Vehicle = mongoose.model("ff_vehicles", VehicleSchema, "ff_vehicles");
 let Inventory = mongoose.model("ff_inventory", InventorySchema, "ff_inventory");
+// **RATE CARD MODELS** (Phase 2) - Initialized as null, will be set when needed
+let RateCard = null;
+let RateTableEntry = null;
+let Quote = null;
+let RateCardVersion = null;
 
 let memoryMode = false;
 const memoryCollections = {
@@ -836,7 +850,11 @@ const memoryCollections = {
   ff_vehicles: [],
   ff_inventory: [],
   ff_notifications: [],
-  ff_ocr_jobs: []
+  ff_ocr_jobs: [],
+  ff_rate_cards: [],
+  ff_rate_table_entries: [],
+  ff_quotes: [],
+  ff_rate_card_versions: []
 };
 
 function matchFilters(item, filters) {
@@ -911,6 +929,13 @@ class FakeQuery {
       results = results.slice(0, this.limitCount);
     }
     return results;
+  }
+
+  async exec() {
+    // exec() should execute the query chain and return results
+    // For a lean query, just call lean()
+    // For a non-lean query, return the documents as-is
+    return this.lean();
   }
 }
 
@@ -990,7 +1015,11 @@ const models = {
   ff_shipments: Shipment,
   ff_vehicles: Vehicle,
   ff_inventory: Inventory,
-  ff_ocr_jobs: null  // Will be created when needed
+  ff_ocr_jobs: null,  // Will be created when needed
+  ff_rate_cards: null,  // Will be created when needed
+  ff_rate_table_entries: null,  // Will be created when needed
+  ff_quotes: null,  // Will be created when needed
+  ff_rate_card_versions: null  // Will be created when needed
 };
 
 const searchFields = {
@@ -1276,6 +1305,12 @@ async function startServer() {
     Vehicle = createFakeModel('ff_vehicles');
     Inventory = createFakeModel('ff_inventory');
     Notification = createFakeModel('ff_notifications');
+    // **RATE CARD MODELS** (Phase 2)
+    RateCard = createFakeModel('ff_rate_cards');
+    RateTableEntry = createFakeModel('ff_rate_table_entries');
+    Quote = createFakeModel('ff_quotes');
+    RateCardVersion = createFakeModel('ff_rate_card_versions');
+    
     models.ff_users = User;
     models.ff_invoices = Invoice;
     models.ff_vendors = Vendor;
@@ -1287,6 +1322,11 @@ async function startServer() {
     models.ff_vehicles = Vehicle;
     models.ff_inventory = Inventory;
     models.ff_notifications = Notification;
+    // **RATE CARD MODELS**
+    models.ff_rate_cards = RateCard;
+    models.ff_rate_table_entries = RateTableEntry;
+    models.ff_quotes = Quote;
+    models.ff_rate_card_versions = RateCardVersion;
     await seedDemoData();
   }
 
@@ -2374,7 +2414,52 @@ async function startServer() {
   // ═══════════════════════════════════════════════════════════
   
   const rateCardRoutes = require('./routes/rateCardRoutes');
+  
+  // Health check for rate cards
+  app.get('/api/rate-cards/health', (req, res) => {
+    res.json({
+      status: 'ok',
+      endpoint: '/api/rate-cards',
+      features: ['GET', 'POST', 'PUT', 'DELETE'],
+      timestamp: new Date().toISOString()
+    });
+  });
+  
   app.use('/api/rate-cards', rateCardRoutes);
+  
+  // Initialize rate card models in the route handler
+  let rateCardModels = {
+    RateCard: null,
+    RateTableEntry: null,
+    Quote: null,
+    RateCardVersion: null
+  };
+  
+  // If MongoDB is connected, try to load the real models
+  if (mongoose.connection.readyState === 1) {
+    try {
+      rateCardModels = require('./models/rateCardModels');
+      console.log('✅ Rate card models loaded from MongoDB');
+    } catch (err) {
+      console.warn('⚠️ Failed to load rate card models from file, using memory models:', err.message);
+      rateCardModels = {
+        RateCard: models.ff_rate_cards,
+        RateTableEntry: models.ff_rate_table_entries,
+        Quote: models.ff_quotes,
+        RateCardVersion: models.ff_rate_card_versions
+      };
+    }
+  } else {
+    // MongoDB not connected, use memory models
+    rateCardModels = {
+      RateCard: models.ff_rate_cards,
+      RateTableEntry: models.ff_rate_table_entries,
+      Quote: models.ff_quotes,
+      RateCardVersion: models.ff_rate_card_versions
+    };
+  }
+  
+  rateCardRoutes.initializeModels(rateCardModels);
   
   console.log(`\n✅ Rate Card Management Loaded:`);
   console.log(`   ✓ GET /api/rate-cards - Fetch all rate cards`);
@@ -2746,6 +2831,31 @@ async function startServer() {
 
   // Log Nomadia features activated - REAL DATA ONLY
   console.log(`   ✓ Driver Delivery App - Real Assignments`);
+  console.log(`\n`);
+
+  // ═══════════════════════════════════════════════════════════
+  // NEW ENTERPRISE FEATURES ROUTES
+  // ═══════════════════════════════════════════════════════════
+  
+  const dashboardRoutes = require('./routes/dashboardRoutes');
+  const analyticsRoutes = require('./routes/analyticsRoutes');
+  const workflowRoutes = require('./routes/workflowRoutes');
+
+  app.use('/api/dashboard', dashboardRoutes);
+  app.use('/api/analytics', analyticsRoutes);
+  app.use('/api/workflows', workflowRoutes);
+
+  console.log(`\n✅ Enterprise Features Loaded:`);
+  console.log(`   ✓ GET /api/dashboard/:clientId - Client dashboards`);
+  console.log(`   ✓ POST /api/dashboard/:clientId/kpis - Update KPIs`);
+  console.log(`   ✓ GET /api/analytics/cost/:shipmentId - Cost breakdown`);
+  console.log(`   ✓ POST /api/analytics/cost - Create cost analysis`);
+  console.log(`   ✓ GET /api/analytics/compliance/:shipmentId - Compliance tracking`);
+  console.log(`   ✓ POST /api/analytics/compliance - Create compliance record`);
+  console.log(`   ✓ GET /api/dashboard/capacity/:shipmentId - Capacity management`);
+  console.log(`   ✓ POST /api/workflows/multi-modal - Multi-modal routing`);
+  console.log(`   ✓ POST /api/workflows/shipment - Shipment workflows`);
+  console.log(`   ✓ POST /api/workflows/shipment/:shipmentId/transition - Workflow transitions`);
   console.log(`\n`);
 
   app.listen(PORT, () => {

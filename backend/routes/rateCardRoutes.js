@@ -10,7 +10,39 @@ const router = express.Router();
 const multer = require('multer');
 const csv = require('csv-parser');
 const fs = require('fs');
-const { RateCard, RateTableEntry, Quote, RateCardVersion } = require('../models/rateCardModels');
+
+let RateCard, RateTableEntry, Quote, RateCardVersion;
+
+// Try to load models, handle if MongoDB is not connected
+try {
+  const models = require('../models/rateCardModels');
+  RateCard = models.RateCard;
+  RateTableEntry = models.RateTableEntry;
+  Quote = models.Quote;
+  RateCardVersion = models.RateCardVersion;
+} catch (err) {
+  console.warn('⚠️ Rate card models not available yet, will be initialized later');
+}
+
+// Function to initialize models after they're created (for memory mode)
+router.initializeModels = function(models) {
+  RateCard = models.RateCard;
+  RateTableEntry = models.RateTableEntry;
+  Quote = models.Quote;
+  RateCardVersion = models.RateCardVersion;
+  console.log('✅ Rate card models initialized in rate card routes');
+};
+
+// ============================================================================
+// HEALTH CHECK
+// ============================================================================
+router.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    models_initialized: !!RateCard,
+    timestamp: new Date().toISOString()
+  });
+});
 
 // ============================================================================
 // PART 1: RATE CARD MANAGEMENT ENDPOINTS
@@ -22,18 +54,46 @@ const { RateCard, RateTableEntry, Quote, RateCardVersion } = require('../models/
  */
 router.get('/', async (req, res) => {
   try {
+    console.log('📥 GET /api/rate-cards - Request received');
+    console.log('   req.user:', req.user ? { id: req.user.id, company_id: req.user.company_id } : 'undefined');
+    
+    // Check if RateCard model is initialized
+    if (!RateCard) {
+      console.warn('⚠️ RateCard model not initialized, returning empty array');
+      return res.json({ 
+        success: true, 
+        data: [],
+        warning: 'Models not yet initialized'
+      });
+    }
+    
     // Get company_id from authenticated user or use demo company
     const company_id = req.user?.company_id || req.user?.id || 'demo-company-001';
+    console.log('   company_id resolved to:', company_id);
     
     const cards = await RateCard.find({ company_id })
       .sort({ created_at: -1 })
       .lean();
     
     console.log(`✅ Retrieved ${cards.length} rate cards for company ${company_id}`);
-    res.json({ success: true, data: cards });
+    res.json({ success: true, data: cards || [] });
   } catch (error) {
-    console.error('❌ Error fetching rate cards:', error);
-    res.status(500).json({ error: error.message });
+    console.error('❌ Error in GET /api/rate-cards:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    
+    // Return meaningful error instead of 500
+    if (error.name === 'MongooseError' || error.name === 'MongoServerError') {
+      return res.status(503).json({ 
+        error: 'Database connection issue', 
+        message: 'Please try again later',
+        type: error.name 
+      });
+    }
+    
+    res.status(500).json({ error: error.message, type: error.name });
   }
 });
 
@@ -43,6 +103,15 @@ router.get('/', async (req, res) => {
  */
 router.post('/', async (req, res) => {
   try {
+    // Check if RateCard model is initialized
+    if (!RateCard) {
+      console.warn('⚠️ RateCard model not initialized for POST');
+      return res.status(503).json({ 
+        error: 'Service not yet ready', 
+        message: 'Rate card service is initializing. Please try again in a moment.'
+      });
+    }
+    
     const company_id = req.user?.company_id || req.user?.id || 'demo-company-001';
     const { name, description, is_default } = req.body;
     
@@ -65,6 +134,14 @@ router.post('/', async (req, res) => {
     res.status(201).json({ success: true, data: newCard });
   } catch (error) {
     console.error('❌ Error creating rate card:', error);
+    
+    if (error.name === 'MongooseError' || error.name === 'MongoServerError') {
+      return res.status(503).json({ 
+        error: 'Database connection issue', 
+        message: 'Please try again later'
+      });
+    }
+    
     res.status(500).json({ error: error.message });
   }
 });
