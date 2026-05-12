@@ -854,7 +854,14 @@ const memoryCollections = {
   ff_rate_cards: [],
   ff_rate_table_entries: [],
   ff_quotes: [],
-  ff_rate_card_versions: []
+  ff_rate_card_versions: [],
+  // Enterprise features
+  ff_dashboards: [],
+  ff_capacity: [],
+  ff_cost_analytics: [],
+  ff_compliance: [],
+  ff_multi_modal_routes: [],
+  ff_shipment_workflows: []
 };
 
 function matchFilters(item, filters) {
@@ -2844,6 +2851,64 @@ async function startServer() {
   app.use('/api/dashboard', dashboardRoutes);
   app.use('/api/analytics', analyticsRoutes);
   app.use('/api/workflows', workflowRoutes);
+
+  // Initialize enterprise feature models in the route handlers
+  let dashboardModels = {
+    Dashboard: null,
+    Capacity: null
+  };
+  
+  let analyticsModels = {
+    CostAnalytics: null,
+    Compliance: null
+  };
+  
+  let workflowModels = {
+    MultiModalRoute: null,
+    ShipmentWorkflow: null
+  };
+  
+  // If MongoDB is connected, try to load the real models
+  if (mongoose.connection.readyState === 1) {
+    try {
+      dashboardModels = require('./models/dashboardModels');
+      analyticsModels = require('./models/analyticsModels');
+      workflowModels = require('./models/workflowModels');
+      console.log('✅ Enterprise feature models loaded from MongoDB');
+    } catch (err) {
+      console.warn('⚠️ Failed to load enterprise models from files, using memory models:', err.message);
+      dashboardModels = {
+        Dashboard: createFakeModel('ff_dashboards'),
+        Capacity: createFakeModel('ff_capacity')
+      };
+      analyticsModels = {
+        CostAnalytics: createFakeModel('ff_cost_analytics'),
+        Compliance: createFakeModel('ff_compliance')
+      };
+      workflowModels = {
+        MultiModalRoute: createFakeModel('ff_multi_modal_routes'),
+        ShipmentWorkflow: createFakeModel('ff_shipment_workflows')
+      };
+    }
+  } else {
+    // MongoDB not connected, use memory models
+    dashboardModels = {
+      Dashboard: createFakeModel('ff_dashboards'),
+      Capacity: createFakeModel('ff_capacity')
+    };
+    analyticsModels = {
+      CostAnalytics: createFakeModel('ff_cost_analytics'),
+      Compliance: createFakeModel('ff_compliance')
+    };
+    workflowModels = {
+      MultiModalRoute: createFakeModel('ff_multi_modal_routes'),
+      ShipmentWorkflow: createFakeModel('ff_shipment_workflows')
+    };
+  }
+  
+  dashboardRoutes.initializeModels(dashboardModels);
+  analyticsRoutes.initializeModels(analyticsModels);
+  workflowRoutes.initializeModels(workflowModels);
 
   console.log(`\n✅ Enterprise Features Loaded:`);
   console.log(`   ✓ GET /api/dashboard/:clientId - Client dashboards`);

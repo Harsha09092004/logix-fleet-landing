@@ -1,6 +1,23 @@
 const express = require('express');
 const router = express.Router();
-const { Dashboard, Capacity } = require('../models/dashboardModels');
+
+let Dashboard, Capacity;
+
+// Try to load models, handle if MongoDB is not connected
+try {
+  const models = require('../models/dashboardModels');
+  Dashboard = models.Dashboard;
+  Capacity = models.Capacity;
+} catch (err) {
+  console.warn('⚠️ Dashboard models not available yet, will be initialized later');
+}
+
+// Function to initialize models after they're created (for memory mode)
+router.initializeModels = function(models) {
+  Dashboard = models.Dashboard;
+  Capacity = models.Capacity;
+  console.log('✅ Dashboard models initialized');
+};
 
 // Helper: Authenticate token (mock implementation)
 const authenticateToken = (req, res, next) => {
@@ -14,6 +31,14 @@ const authenticateToken = (req, res, next) => {
 // Get Dashboard for a Client
 router.get('/:clientId', authenticateToken, async (req, res) => {
   try {
+    if (!Dashboard) {
+      console.warn('⚠️ Dashboard model not initialized');
+      return res.status(503).json({ 
+        error: 'Service not yet ready', 
+        message: 'Dashboard service is initializing. Please try again in a moment.'
+      });
+    }
+
     const { clientId } = req.params;
     let dashboard = await Dashboard.findOne({ clientId }).populate('recentShipments');
     

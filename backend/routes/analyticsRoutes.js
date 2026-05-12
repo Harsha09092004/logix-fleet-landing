@@ -1,6 +1,23 @@
 const express = require('express');
 const router = express.Router();
-const { CostAnalytics, Compliance } = require('../models/analyticsModels');
+
+let CostAnalytics, Compliance;
+
+// Try to load models, handle if MongoDB is not connected
+try {
+  const models = require('../models/analyticsModels');
+  CostAnalytics = models.CostAnalytics;
+  Compliance = models.Compliance;
+} catch (err) {
+  console.warn('⚠️ Analytics models not available yet, will be initialized later');
+}
+
+// Function to initialize models after they're created (for memory mode)
+router.initializeModels = function(models) {
+  CostAnalytics = models.CostAnalytics;
+  Compliance = models.Compliance;
+  console.log('✅ Analytics models initialized');
+};
 
 const authenticateToken = (req, res, next) => {
   next();
@@ -13,6 +30,14 @@ const authenticateToken = (req, res, next) => {
 // Create Cost Analysis for Shipment
 router.post('/cost', authenticateToken, async (req, res) => {
   try {
+    if (!CostAnalytics) {
+      console.warn('⚠️ CostAnalytics model not initialized');
+      return res.status(503).json({ 
+        error: 'Service not yet ready', 
+        message: 'Analytics service is initializing. Please try again in a moment.'
+      });
+    }
+
     const {
       shipmentId, clientId, routeId, costBreakdown, revenue
     } = req.body;

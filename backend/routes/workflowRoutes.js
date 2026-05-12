@@ -1,6 +1,23 @@
 const express = require('express');
 const router = express.Router();
-const { MultiModalRoute, ShipmentWorkflow } = require('../models/workflowModels');
+
+let MultiModalRoute, ShipmentWorkflow;
+
+// Try to load models, handle if MongoDB is not connected
+try {
+  const models = require('../models/workflowModels');
+  MultiModalRoute = models.MultiModalRoute;
+  ShipmentWorkflow = models.ShipmentWorkflow;
+} catch (err) {
+  console.warn('⚠️ Workflow models not available yet, will be initialized later');
+}
+
+// Function to initialize models after they're created (for memory mode)
+router.initializeModels = function(models) {
+  MultiModalRoute = models.MultiModalRoute;
+  ShipmentWorkflow = models.ShipmentWorkflow;
+  console.log('✅ Workflow models initialized');
+};
 
 const authenticateToken = (req, res, next) => {
   next();
@@ -13,6 +30,14 @@ const authenticateToken = (req, res, next) => {
 // Create Multi-Modal Route
 router.post('/multi-modal', authenticateToken, async (req, res) => {
   try {
+    if (!MultiModalRoute) {
+      console.warn('⚠️ MultiModalRoute model not initialized');
+      return res.status(503).json({ 
+        error: 'Service not yet ready', 
+        message: 'Workflow service is initializing. Please try again in a moment.'
+      });
+    }
+
     const {
       routeName, shipmentId, clientId, origin, destination, segments
     } = req.body;
