@@ -1,5 +1,6 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
+const bcrypt = require('bcrypt');
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/freightflow';
 
@@ -34,11 +35,14 @@ async function createTestUser() {
     await mongoose.connect(MONGO_URI);
     console.log('✅ Connected to MongoDB');
 
+    // Hash password using bcrypt
+    const hashedPassword = await bcrypt.hash('test123', 10);
+
     // Create a test user for comp-001
     const testUser = new User({
       id: 'user-001',
       email: 'test@comp-001.com',
-      password_hash: 'test123',
+      password_hash: hashedPassword,
       name: 'Test User',
       company: 'Test Company',
       company_id: 'comp-001',

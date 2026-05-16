@@ -610,6 +610,12 @@ const API = {
 const Session = {
   KEY: 'ff_session_v2',
   REFRESH_KEY: 'ff_refresh_time',
+  ACTIVITY_KEY: 'ff_last_activity',
+  TIMEOUT_KEY: 'ff_timeout_warned',
+  
+  // Timeout configuration (in milliseconds)
+  TIMEOUT_MS: 30 * 60 * 1000,      // 30 minutes
+  WARNING_MS: 28 * 60 * 1000,      // 28 minutes (2 min warning)
 
   save(user) {
     localStorage.setItem(this.KEY, JSON.stringify({
@@ -625,6 +631,7 @@ const Session = {
       savedAt: Date.now()
     }));
     localStorage.setItem(this.REFRESH_KEY, Date.now());
+    this.resetActivity();
   },
 
   get() {
@@ -637,13 +644,68 @@ const Session = {
     } catch { return null; }
   },
 
-  clear() { localStorage.removeItem(this.KEY); localStorage.removeItem(this.REFRESH_KEY); },
+  clear() { 
+    localStorage.removeItem(this.KEY); 
+    localStorage.removeItem(this.REFRESH_KEY);
+    localStorage.removeItem(this.ACTIVITY_KEY);
+    localStorage.removeItem(this.TIMEOUT_KEY);
+  },
 
   isLoggedIn() { return !!this.get(); },
 
   getToken() {
     const user = this.get();
     return user && user.token ? user.token : null;
+  },
+
+  // ─── SESSION TIMEOUT ──────────────────────────────────────
+  // Track user activity to determine inactivity
+  recordActivity() {
+    if (!this.isLoggedIn()) return;
+    localStorage.setItem(this.ACTIVITY_KEY, Date.now());
+  },
+
+  resetActivity() {
+    localStorage.setItem(this.ACTIVITY_KEY, Date.now());
+    localStorage.removeItem(this.TIMEOUT_KEY); // Clear warning flag on activity
+  },
+
+  getLastActivityTime() {
+    const lastActivity = localStorage.getItem(this.ACTIVITY_KEY);
+    return lastActivity ? parseInt(lastActivity) : null;
+  },
+
+  getInactivityTime() {
+    const lastActivity = this.getLastActivityTime();
+    if (!lastActivity) return 0;
+    return Date.now() - lastActivity;
+  },
+
+  isInactivityWarning() {
+    const inactivityTime = this.getInactivityTime();
+    return inactivityTime > this.WARNING_MS && inactivityTime < this.TIMEOUT_MS;
+  },
+
+  hasTimedOut() {
+    return this.getInactivityTime() > this.TIMEOUT_MS;
+  },
+
+  wasWarned() {
+    return localStorage.getItem(this.TIMEOUT_KEY) === 'true';
+  },
+
+  setWarned() {
+    localStorage.setItem(this.TIMEOUT_KEY, 'true');
+  },
+
+  getTimeRemaining() {
+    const remaining = this.TIMEOUT_MS - this.getInactivityTime();
+    return Math.max(0, remaining);
+  },
+
+  getWarningRemaining() {
+    const timeUntilLogout = this.getTimeRemaining();
+    return Math.max(0, timeUntilLogout);
   },
 
   // Auto-refresh token when it expires
@@ -790,3 +852,73 @@ async function callIntegrationConnect(provider, config) {
   alert(provider + " integration: " + JSON.stringify(data));
   return data;
 }
+
+// ═══════════════════════════════════════════════════════════════
+// CLIENT-SIDE AUDIT LOGGING
+// ═══════════════════════════════════════════════════════════════
+
+// Frontend audit helper for logging user actions
+const Audit = {
+  // Log an action (called from frontend)
+  async log(action, details = {}) {
+    if (!Session.isLoggedIn()) return;
+    
+    const user = Session.get();
+    const entry = {
+      timestamp: new Date().toISOString(),
+      user_id: user.id,
+      email: user.email,
+      action,
+      details,
+      page: window.location.hash || 'dashboard',
+      userAgent: navigator.userAgent.substring(0, 100)
+    };
+
+    // Store locally for offline capability
+    try {
+      const existing = JSON.parse(localStorage.getItem('ff_audit_local') || '[]');
+      existing.push(entry);
+      localStorage.setItem('ff_audit_local', JSON.stringify(existing.slice(-50))); // Keep last 50
+    } catch (e) {
+      console.warn('Could not store local audit log');
+    }
+
+    console.log(`📝 Audit: ${action}`, details);
+  },
+
+  // Predefined audit events
+  logNavigation(page) {
+    this.log('navigate_page', { page });
+  },
+
+  logInvoiceCreated(invoiceId, amount) {
+    this.log('invoice_created', { invoice_id: invoiceId, amount });
+  },
+
+  logInvoiceApproved(invoiceId) {
+    this.log('invoice_approved', { invoice_id: invoiceId });
+  },
+
+  logInvoiceRejected(invoiceId, reason) {
+    this.log('invoice_rejected', { invoice_id: invoiceId, reason });
+  },
+
+  logPaymentApproved(amount, method) {
+    this.log('payment_approved', { amount, method });
+  },
+
+  logReportViewed(reportType) {
+    this.log('report_viewed', { report_type: reportType });
+  },
+
+  logSettingsChanged(setting, oldValue, newValue) {
+    this.log('settings_changed', { setting, old_value: oldValue, new_value: newValue });
+  },
+
+  logAdminAction(action, target) {
+    this.log(`admin_${action}`, { target });
+  }
+};
+
+// Auto-log page navigation (initialized in app.js after Router loads)
+

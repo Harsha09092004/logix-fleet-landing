@@ -11,12 +11,13 @@
 
 const express = require('express');
 
-module.exports = function(authenticateToken) {
+module.exports = function(authenticateToken, models = {}) {
   const router = express.Router();
   const mongoose = require('mongoose');
 
-  // Get models
+  // Get models - prefer passed models, then global mongoose models
   const getShipmentModel = () => {
+    if (models.ff_shipments) return models.ff_shipments;
     try {
       return mongoose.models.ff_shipments || mongoose.model('ff_shipments');
     } catch {
@@ -25,6 +26,7 @@ module.exports = function(authenticateToken) {
   };
 
   const getVehicleModel = () => {
+    if (models.ff_vehicles) return models.ff_vehicles;
     try {
       return mongoose.models.ff_vehicles || mongoose.model('ff_vehicles');
     } catch {
@@ -94,12 +96,13 @@ module.exports = function(authenticateToken) {
 
       const Shipment = getShipmentModel();
       if (!Shipment) {
-        return res.json({
-          success: true,
-          source: 'no_data',
+        console.warn('⚠️ Shipment model not initialized for tracking');
+        return res.status(503).json({
+          error: 'Service not yet ready',
+          message: 'Shipment tracking service is initializing. Please try again in a moment.',
+          success: false,
           shipments: [],
-          stats: { activeCount: 0 },
-          message: 'No shipments yet'
+          stats: { activeCount: 0 }
         });
       }
 
@@ -109,6 +112,18 @@ module.exports = function(authenticateToken) {
       if (priority) query.priority = priority;
 
       const shipments = await Shipment.find(query).limit(parseInt(limit)).lean();
+
+      // Handle null or undefined shipments
+      if (!shipments || !Array.isArray(shipments)) {
+        return res.json({
+          success: true,
+          source: 'database',
+          shipments: [],
+          stats: { activeCount: 0 },
+          count: 0,
+          message: 'No shipments found'
+        });
+      }
 
       // Format for GPS tracking display
       const trackingData = shipments.map((s, idx) => ({
@@ -157,8 +172,26 @@ module.exports = function(authenticateToken) {
       });
 
     } catch (error) {
-      console.error('❌ GPS Tracking error:', error.message);
-      res.status(500).json({ error: 'Failed to fetch real tracking data', details: error.message });
+      console.error('❌ GPS Tracking error:', error.message, error.stack);
+      
+      // Return 503 for database/service errors
+      if (error.name === 'MongooseError' || error.name === 'MongoServerError') {
+        return res.status(503).json({ 
+          error: 'Database connection issue', 
+          message: 'Please try again later',
+          success: false,
+          shipments: [],
+          stats: { activeCount: 0 }
+        });
+      }
+
+      res.status(500).json({ 
+        error: 'Failed to fetch real tracking data', 
+        details: error.message,
+        success: false,
+        shipments: [],
+        stats: { activeCount: 0 }
+      });
     }
   });
 

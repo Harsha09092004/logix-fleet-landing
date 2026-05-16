@@ -94,6 +94,15 @@
       console.log('📍 Initializing router...');
       try {
         Router.init();
+        
+        // Wrap Router.navigate to auto-log page navigation (after Router loads)
+        if (typeof Audit !== 'undefined') {
+          const origRouterNavigate = Router.navigate.bind(Router);
+          Router.navigate = function(page) {
+            Audit.logNavigation(page);
+            return origRouterNavigate(page);
+          };
+        }
       } catch (e) {
         console.error('💥 Router init failed:', e);
       }
@@ -283,5 +292,151 @@
       if (user && !user.onboarded) showOnboarding();
     }
   };
+
+  // ─── SESSION TIMEOUT & TOKEN REFRESH ──────────────────────
+  
+  // Show timeout warning modal
+  function showTimeoutWarning() {
+    const timeRemaining = Session.getWarningRemaining();
+    const minutesLeft = Math.ceil(timeRemaining / 60000);
+    
+    openModal(`
+      <div class="modal" style="max-width:480px;background:#fff9f0;border:2px solid #ff7f00">
+        <div class="modal-header" style="background:linear-gradient(135deg,#ff7f00,#ff6b35);border-radius:16px 16px 0 0">
+          <div>
+            <div class="modal-title" style="color:#fff;font-size:18px">⏱️ Session Inactivity Warning</div>
+            <div style="font-size:13px;color:rgba(255,255,255,.7);margin-top:2px">Your session will expire in ${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}</div>
+          </div>
+          <button class="modal-close" onclick="closeTimeoutWarning()" style="background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2);color:#fff">✕</button>
+        </div>
+        <div class="modal-body">
+          <div style="text-align:center;margin-bottom:20px">
+            <div style="font-size:48px;margin-bottom:10px">⏳</div>
+            <div style="font-size:16px;font-weight:700;color:#ff7f00">Your session is about to expire</div>
+            <div style="font-size:13px;color:var(--text-muted);margin-top:8px">
+              You have been inactive for a while. To protect your data, your session will automatically close in <strong>${minutesLeft} minute${minutesLeft !== 1 ? 's' : ''}</strong>.
+            </div>
+          </div>
+          
+          <div style="padding:14px;background:#fff0e6;border-radius:10px;border:1px solid #ffc9a3;margin-bottom:20px">
+            <div style="font-size:12px;color:#ff7f00;text-align:center;font-weight:600">
+              💡 Tip: Your session will extend automatically when you perform any action
+            </div>
+          </div>
+
+          <div style="display:grid;gap:12px;margin-bottom:20px">
+            <div style="padding:10px;background:var(--bg);border-radius:8px;border:1px solid var(--border)">
+              <div style="font-size:12px;font-weight:600;color:var(--text-muted)">Actions that extend your session:</div>
+              <ul style="font-size:12px;color:var(--text-muted);margin:6px 0 0 16px;list-style:disc">
+                <li>Navigating pages</li>
+                <li>Clicking buttons</li>
+                <li>Moving your mouse</li>
+                <li>Typing anywhere</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" onclick="Session.clear();Router.navigate('login');closeTimeoutWarning()">🚪 Logout Now</button>
+          <button class="btn btn-primary" onclick="Session.resetActivity();showToast('✅ Session extended for 30 minutes', 'success');closeTimeoutWarning()">⏱️ Stay Logged In</button>
+        </div>
+      </div>`);
+
+    window.closeTimeoutWarning = () => closeModal();
+  }
+
+  // Auto-logout handler
+  function performSessionTimeout() {
+    Session.clear();
+    showToast('⏱️ Your session has expired. Please login again.', 'warning');
+    setTimeout(() => {
+      Router.navigate('login');
+    }, 1500);
+  }
+
+  // Session timeout checker — runs every 30 seconds
+  let timeoutCheckInterval = null;
+  let timeoutWarningShown = false;
+
+  function startTimeoutMonitoring() {
+    if (timeoutCheckInterval) return; // Already running
+    
+    timeoutCheckInterval = setInterval(() => {
+      if (!Session.isLoggedIn()) {
+        // Stop monitoring if logged out
+        clearInterval(timeoutCheckInterval);
+        timeoutCheckInterval = null;
+        timeoutWarningShown = false;
+        return;
+      }
+
+      // Check if session has timed out
+      if (Session.hasTimedOut()) {
+        clearInterval(timeoutCheckInterval);
+        timeoutCheckInterval = null;
+        performSessionTimeout();
+        return;
+      }
+
+      // Check if inactivity warning threshold reached
+      if (Session.isInactivityWarning() && !Session.wasWarned()) {
+        Session.setWarned();
+        if (!timeoutWarningShown) {
+          timeoutWarningShown = true;
+          showTimeoutWarning();
+        }
+      }
+
+      // Reset warning flag if user becomes active again before timeout
+      if (!Session.isInactivityWarning() && Session.wasWarned()) {
+        localStorage.removeItem('ff_timeout_warned');
+      }
+    }, 30000); // Check every 30 seconds
+  }
+
+  function stopTimeoutMonitoring() {
+    if (timeoutCheckInterval) {
+      clearInterval(timeoutCheckInterval);
+      timeoutCheckInterval = null;
+      timeoutWarningShown = false;
+    }
+  }
+
+  // Activity tracking — resets inactivity timer
+  const activityEvents = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+  
+  function onUserActivity() {
+    if (!Session.isLoggedIn()) return;
+    
+    // Only record activity if we've been inactive for a while (avoid constant updates)
+    const lastActivity = Session.getLastActivityTime();
+    if (!lastActivity || Date.now() - lastActivity > 60000) { // At least 1 minute since last record
+      Session.recordActivity();
+      timeoutWarningShown = false; // Reset warning flag on activity
+    }
+  }
+
+  // Attach activity listeners
+  activityEvents.forEach(event => {
+    document.addEventListener(event, onUserActivity, { passive: true });
+  });
+
+  // Hook into router to manage timeout monitoring
+  const origNavigate = Router.navigate.bind(Router);
+  Router.navigate = function(page) {
+    if (Session.isLoggedIn()) {
+      onUserActivity(); // Record activity on navigation
+    }
+    return origNavigate(page);
+  };
+
+  // Start/stop monitoring based on login state
+  setInterval(() => {
+    if (Session.isLoggedIn() && !timeoutCheckInterval) {
+      startTimeoutMonitoring();
+    } else if (!Session.isLoggedIn() && timeoutCheckInterval) {
+      stopTimeoutMonitoring();
+    }
+  }, 5000);
 
 })();

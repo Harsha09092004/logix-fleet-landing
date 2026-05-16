@@ -193,6 +193,12 @@ const Router = {
               <span style="font-size:9px;background:#10b981;color:#fff;padding:1px 5px;border-radius:4px;font-weight:700;margin-left:4px">NEW</span>
             </a>
 
+            <div class="nav-section-title" style="margin-top:8px">Administration</div>
+            <a class="nav-item" data-page="admin" onclick="Router.navigate('admin');return false;" href="#">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>
+              Admin Panel
+            </a>
+
             <div class="nav-section-title" style="margin-top:8px">Account</div>
             <a class="nav-item" data-page="settings" onclick="Router.navigate('settings');return false;" href="#">
               <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M19.07 19.07l-1.41-1.41M4.93 19.07l1.41-1.41M21 12h-2M5 12H3M12 21v-2M12 5V3"/></svg>
@@ -282,6 +288,7 @@ const Router = {
     if (window.DEBUG_MODE) console.log('Rendering page:', page);
     const pageMap = {
       dashboard: Pages.dashboard,
+      admin: Pages.admin,
       invoices: Pages.invoices,
       gst: Pages.gst,
       payments: Pages.payments,
