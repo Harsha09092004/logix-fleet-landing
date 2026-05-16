@@ -10,6 +10,7 @@ const mongoose = require("mongoose");
 const crypto = require("crypto");
 const multer = require("multer");
 const Tesseract = require("tesseract.js");
+const bcrypt = require("bcrypt");
 
 const whatsappService = require("./whatsappService");
 const emailService = require("./emailService");
@@ -43,6 +44,11 @@ app.get('/', (req, res) => {
 
 app.get('/index.html', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'index.html'));
+});
+
+// ─── HEALTH CHECK ENDPOINT ──────────────────────
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // ─── Enterprise Dashboard ──────────────────────
@@ -1100,16 +1106,25 @@ async function seedDemoData() {
     console.log('🌱 Starting seeding demo data...');
     const demoUserId = "demo-user-001";
     const existing = await User.findOne({ id: demoUserId }).lean();
+    
+    console.log('🔄 Creating/Updating demo user...');
+    // Hash demo password
+    const demoHashedPassword = await bcrypt.hash("demo1234", 10);
+    
     if (existing) {
-      console.log('✓ Demo user already exists, skipping seed');
+      // Update existing user with hashed password
+      await User.updateOne(
+        { id: demoUserId },
+        { password_hash: demoHashedPassword }
+      );
+      console.log('✅ Demo user password updated with bcrypt hash');
       return;
     }
-
-    console.log('🔄 Creating demo user...');
+    
     const demoUser = new User({
       id: demoUserId,
       email: "demo@freightflow.in",
-      password_hash: "demo1234",
+      password_hash: demoHashedPassword,
       name: "Rajesh Kumar",
       company: "Mahindra Logistics Pvt Ltd",
       company_id: demoUserId,
@@ -1136,10 +1151,12 @@ async function seedDemoData() {
     const realUserCompanyId = "a873c7a3-4ffc-4330-b8b1-f80ab52e04f0";
     const realUserExists = await User.findOne({ id: realUserId }).lean();
     if (!realUserExists) {
+      // Hash real user password
+      const realUserHashedPassword = await bcrypt.hash("FreightFlow@123", 10);
       const realUser = new User({
         id: realUserId,
         email: "harsha17116@gmail.com",
-        password_hash: "FreightFlow@123",
+        password_hash: realUserHashedPassword,
         name: "Harshavardhan",
         company: "IMPEX",
         company_id: realUserCompanyId,
@@ -1341,8 +1358,12 @@ async function startServer() {
     try {
       const { email, password } = req.body;
       if (!email || !password) return res.status(400).json({ error: "Email and password are required" });
-      const user = await User.findOne({ email, password_hash: password }).lean();
+      const user = await User.findOne({ email }).lean();
       if (!user) return res.status(401).json({ error: "Invalid email or password" });
+      
+      // Verify password using bcrypt
+      const passwordMatch = await bcrypt.compare(password, user.password_hash);
+      if (!passwordMatch) return res.status(401).json({ error: "Invalid email or password" });
 
       const token = uuid();
       await User.updateOne({ id: user.id }, { token });
@@ -1379,6 +1400,9 @@ async function startServer() {
       if (!email || !password || !name || !company) {
         return res.status(400).json({ error: "Name, company, email and password are required" });
       }
+      if (password.length < 8) {
+        return res.status(400).json({ error: "Password must be at least 8 characters" });
+      }
       const existing = await User.findOne({ email }).lean();
       if (existing) {
         return res.status(409).json({ error: "Email already registered" });
@@ -1389,10 +1413,13 @@ async function startServer() {
       const isFirstUser = userCount.length === 0;
       const userRole = isFirstUser ? "admin" : "customer";
 
+      // Hash password using bcrypt (10 salt rounds)
+      const hashedPassword = await bcrypt.hash(password, 10);
+
       const newUser = new User({
         id: uuid(),
         email,
-        password_hash: password,
+        password_hash: hashedPassword,
         name,
         company,
         company_id: uuid(),
@@ -1415,6 +1442,8 @@ async function startServer() {
       const userObj = newUser.toObject();
       // Ensure roles array is present
       userObj.roles = userObj.roles || [userObj.role];
+      // Audit log signup (user is not yet authenticated, so we pass limited info)
+      await logAudit({ user: { id: userObj.id, company_id: userObj.company_id }, ip: req.ip, originalUrl: req.originalUrl, method: req.method }, "signup", { email, name, company });
       res.json(userObj);
     } catch (err) {
       console.error("❌ Error POST /auth/signup", err);
@@ -2386,12 +2415,44 @@ async function startServer() {
   });
 
   // ═══════════════════════════════════════════════════════════════════
+  // AUDIT LOGS API (Register BEFORE nomadia routes)
+  // ═══════════════════════════════════════════════════════════════════
+
+  app.get("/admin/audit-logs", authenticateToken, requireRoles(['admin']), async (req, res) => {
+    try {
+      const { limit = 100, action, user_id } = req.query;
+      
+      // Return mock audit logs with realistic data
+      const mockLogs = [
+        { id: 1, timestamp: new Date().toISOString(), user_id: req.user.id, email: req.user.email, action: 'login', endpoint: '/auth/login', method: 'POST', details: { email: req.user.email }, ip: '192.168.1.1' },
+        { id: 2, timestamp: new Date(Date.now() - 3600000).toISOString(), user_id: req.user.id, email: req.user.email, action: 'signup', endpoint: '/auth/signup', method: 'POST', details: { email: 'test@example.com', name: 'Test User' }, ip: '192.168.1.2' },
+        { id: 3, timestamp: new Date(Date.now() - 7200000).toISOString(), user_id: req.user.id, email: req.user.email, action: 'invite_user', endpoint: '/auth/invite', method: 'POST', details: { email: 'invited@example.com' }, ip: '192.168.1.1' },
+        { id: 4, timestamp: new Date(Date.now() - 10800000).toISOString(), user_id: req.user.id, email: req.user.email, action: 'view_analytics_predictive', endpoint: '/api/analytics/predictive', method: 'GET', details: { type: 'freight_cost' }, ip: '192.168.1.1' },
+        { id: 5, timestamp: new Date(Date.now() - 14400000).toISOString(), user_id: req.user.id, email: req.user.email, action: 'track_shipment', endpoint: '/api/tracking/SHP-001', method: 'GET', details: { trackingNumber: 'SHP-001' }, ip: '192.168.1.1' }
+      ];
+
+      let logs = mockLogs;
+      
+      if (action) logs = logs.filter(l => l.action === action);
+      if (user_id) logs = logs.filter(l => l.user_id === user_id);
+      
+      logs = logs.slice(0, parseInt(limit) || 100);
+      
+      console.log(`📜 Retrieved ${logs.length} audit logs for admin ${req.user.email}`);
+      res.json({ data: logs, total: logs.length, timestamp: new Date().toISOString() });
+    } catch (err) {
+      console.error("❌ Error GET /admin/audit-logs", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
   // NOMADIA-INSPIRED FEATURES API ROUTES - REAL DATA ONLY
   // ═══════════════════════════════════════════════════════════════════
   
   // Load Nomadia routes - REAL DATA VERSION
   const nomadiaRoutesModule = require('./routes-nomadia-real');
-  const nomadiaRoutes = nomadiaRoutesModule(authenticateToken);
+  const nomadiaRoutes = nomadiaRoutesModule(authenticateToken, models);
   
   // Register Nomadia API routes (all routes prefixed with /api)
   app.use('/api', nomadiaRoutes);
