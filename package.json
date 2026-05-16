@@ -4,8 +4,9 @@
   "description": "Enterprise Logistics & Invoice Automation Platform with Nomadia-inspired Features",
   "main": "backend/server.js",
   "scripts": {
-    "start": "cd backend && node server.js",
+    "start": "cd backend && npm install && node server.js",
     "dev": "cd backend && npm start",
+    "postinstall": "cd backend && npm install",
     "test": "echo \"No tests currently defined\""
   },
   "dependencies": {
